@@ -11,6 +11,7 @@ EventSource is primarily used to profile code. For MSBuild specifically, a major
 | Build | Sets up a BuildManager to receive build requests. |
 | BuildProject | Builds a project file. |
 | CachedSdkResolverServiceResolveSdk | The caching SDK resolver service is resolving an SDK. |
+| CreateLoadedType | Creates a LoadedType object from an assembly loaded via MetadataLoadContext. |
 | CopyUpToDate | Checks whether the Copy task needs to execute. |
 | Evaluate | Evaluates a project, running several other parts of MSBuild in the process. |
 | EvaluateCondition | Checks whether a condition is true and removes false conditionals. |
@@ -33,7 +34,9 @@ EventSource is primarily used to profile code. For MSBuild specifically, a major
 | ReusableStringBuilderFactoryUnbalanced | Identifies improper usage from multiple threads or buggy code: multiple Gets were called without a Relase. |
 | Save | Saves a project to the file system if dirty, creating directories as necessary. |
 | SdkResolverResolveSdk | A single SDK resolver is called. |
-| SdkResolverServiceInitialize | Initializes SDK resolvers. |
+| SdkResolverServiceFindResolversManifests | Find all resolvers manifests. (Only appear under Changewave 17.4.) |
+| SdkResolverServiceInitialize | Initializes SDK resolvers. (Only appear before Changewave 17.4.) |
+| SdkResolverServiceLoadResolvers | Load resolvers given a resolver manifest. (Only appear under Changewave 17.4.) |
 | SdkResolverEvent | An SDK resolver logs an event. |
 | Target | Executes a target. |
 | TargetUpToDate | Checks whether a particular target needs to run or is up-to-date. |
