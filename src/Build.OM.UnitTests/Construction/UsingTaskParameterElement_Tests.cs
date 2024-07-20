@@ -1,13 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.IO;
 using System.Xml;
 using Microsoft.Build.Construction;
-
-using InvalidProjectFileException = Microsoft.Build.Exceptions.InvalidProjectFileException;
 using Xunit;
+using InvalidProjectFileException = Microsoft.Build.Exceptions.InvalidProjectFileException;
 
 #nullable disable
 
@@ -92,8 +91,7 @@ namespace Microsoft.Build.UnitTests.OM.Construction
 
                 ProjectRootElement.Create(XmlReader.Create(new StringReader(content)));
                 Assert.True(false);
-            }
-           );
+            });
         }
         /// <summary>
         /// Set type value
@@ -226,7 +224,8 @@ namespace Microsoft.Build.UnitTests.OM.Construction
         /// </summary>
         private static ProjectUsingTaskParameterElement GetParameterXml(string contents)
         {
-            ProjectRootElement project = ProjectRootElement.Create(XmlReader.Create(new StringReader(contents)));
+            using ProjectRootElementFromString projectRootElementFromString = new(contents);
+            ProjectRootElement project = projectRootElementFromString.Project;
             ProjectUsingTaskElement usingTask = (ProjectUsingTaskElement)Helpers.GetFirst(project.Children);
             UsingTaskParameterGroupElement parameterGroup = usingTask.ParameterGroup;
             ProjectUsingTaskParameterElement body = Helpers.GetFirst(parameterGroup.Parameters);

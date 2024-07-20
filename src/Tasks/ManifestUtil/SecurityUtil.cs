@@ -1,11 +1,11 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
 using Microsoft.Win32;
 using System;
 #if !RUNTIME_TYPE_NETCORE
+using Microsoft.Build.Framework;
 using System.Collections.Generic;
 #endif
 using System.ComponentModel;
@@ -205,7 +205,7 @@ namespace Microsoft.Build.Tasks.Deployment.ManifestUtilities
                         {
                             try
                             {
-                                var sr = new StreamReader(fs);
+                                using var sr = new StreamReader(fs, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, 1024, leaveOpen: true);
                                 string data = sr.ReadToEnd();
                                 if (!string.IsNullOrEmpty(data))
                                 {
@@ -419,11 +419,16 @@ namespace Microsoft.Build.Tasks.Deployment.ManifestUtilities
         {
             SecurityElement se = new SecurityElement(xe.Name);
             foreach (XmlAttribute xa in xe.Attributes)
+            {
                 se.AddAttribute(xa.Name, xa.Value);
+            }
+
             foreach (XmlNode xn in xe.ChildNodes)
             {
                 if (xn.NodeType == XmlNodeType.Element)
+                {
                     se.AddChild(XmlElementToSecurityElement((XmlElement)xn));
+                }
             }
 
             return se;
@@ -434,7 +439,10 @@ namespace Microsoft.Build.Tasks.Deployment.ManifestUtilities
             XmlNamespaceManager nsmgr = XmlNamespaces.GetNamespaceManager(psElement.OwnerDocument.NameTable);
             XmlNodeList nodes = psElement.SelectNodes(XPaths.permissionClassAttributeQuery, nsmgr);
             if (nodes == null || nodes.Count == 0)
+            {
                 nodes = psElement.SelectNodes(XmlUtil.TrimPrefix(XPaths.permissionClassAttributeQuery));
+            }
+
             string[] a;
             if (nodes != null)
             {
@@ -602,14 +610,14 @@ namespace Microsoft.Build.Tasks.Deployment.ManifestUtilities
         [SupportedOSPlatform("windows")]
         public static void SignFile(string certPath, SecureString certPassword, Uri timestampUrl, string path)
         {
-            X509Certificate2 cert = new X509Certificate2(certPath, certPassword, X509KeyStorageFlags.PersistKeySet);
+            using X509Certificate2 cert = new X509Certificate2(certPath, certPassword, X509KeyStorageFlags.PersistKeySet);
             SignFile(cert, timestampUrl, path);
         }
 
         private static bool UseSha256Algorithm(X509Certificate2 cert)
         {
             Oid oid = cert.SignatureAlgorithm;
-            // Issue 6732: Clickonce does not support sha384/sha512 file hash so we default to sha256 
+            // Issue 6732: Clickonce does not support sha384/sha512 file hash so we default to sha256
             // for certs with that signature algorithm.
             return string.Equals(oid.FriendlyName, "sha256RSA", StringComparison.OrdinalIgnoreCase) ||
                    string.Equals(oid.FriendlyName, "sha384RSA", StringComparison.OrdinalIgnoreCase) ||
@@ -660,9 +668,13 @@ namespace Microsoft.Build.Tasks.Deployment.ManifestUtilities
             if (PathUtil.IsPEFile(path))
             {
                 if (IsCertInStore(cert))
+                {
                     SignPEFile(cert, timestampUrl, path, resources, useSha256);
+                }
                 else
+                {
                     throw new InvalidOperationException(resources.GetString("SignFile.CertNotInStore"));
+                }
             }
             else
             {
@@ -675,12 +687,17 @@ namespace Microsoft.Build.Tasks.Deployment.ManifestUtilities
 #endif
                 {
                     if (rsa == null)
+                    {
                         throw new ApplicationException(resources.GetString("SecurityUtil.OnlyRSACertsAreAllowed"));
+                    }
+
                     try
                     {
                         var doc = new XmlDocument { PreserveWhitespace = true };
-                        var xrSettings = new XmlReaderSettings { DtdProcessing = DtdProcessing.Ignore };
-                        using (XmlReader xr = XmlReader.Create(path, xrSettings))
+                        var xrSettings = new XmlReaderSettings { DtdProcessing = DtdProcessing.Ignore, CloseInput = true };
+                        FileStream fs = File.OpenRead(path);
+
+                        using (XmlReader xr = XmlReader.Create(fs, xrSettings))
                         {
                             doc.Load(xr);
                         }
@@ -688,8 +705,9 @@ namespace Microsoft.Build.Tasks.Deployment.ManifestUtilities
                         CmiManifestSigner2 signer;
                         if (useSha256 && rsa is RSACryptoServiceProvider rsacsp)
                         {
-                            RSACryptoServiceProvider csp = SignedCmiManifest2.GetFixedRSACryptoServiceProvider(rsacsp, useSha256);
-                            signer = new CmiManifestSigner2(csp, cert, useSha256);
+#pragma warning disable CA2000 // Dispose objects before losing scope because CmiManifestSigner2 will dispose the RSACryptoServiceProvider
+                            signer = new CmiManifestSigner2(SignedCmiManifest2.GetFixedRSACryptoServiceProvider(rsacsp, useSha256), cert, useSha256);
+#pragma warning restore CA2000 // Dispose objects before losing scope
                         }
                         else
                         {
@@ -711,9 +729,14 @@ namespace Microsoft.Build.Tasks.Deployment.ManifestUtilities
                         // No need to check hModule - Sign() method will quickly fail if we did not load clr.dll
 #endif
                         if (timestampUrl == null)
+                        {
                             manifest.Sign(signer);
+                        }
                         else
+                        {
                             manifest.Sign(signer, timestampUrl.ToString(), disallowMansignTimestampFallback);
+                        }
+
                         doc.Save(path);
                     }
                     catch (Exception ex)
@@ -746,7 +769,7 @@ namespace Microsoft.Build.Tasks.Deployment.ManifestUtilities
             {
                 SignPEFileInternal(cert, timestampUrl, path, resources, useSha256, true);
             }
-            catch(ApplicationException) when (timestampUrl != null)
+            catch (ApplicationException) when (timestampUrl != null)
             {
                 // error, retry with signtool /t if timestamp url was given
                 SignPEFileInternal(cert, timestampUrl, path, resources, useSha256, false);
@@ -818,7 +841,7 @@ namespace Microsoft.Build.Tasks.Deployment.ManifestUtilities
             {
                 commandLine.AppendFormat(CultureInfo.InvariantCulture,
                                             "{0} {1} ",
-                                            useRFC3161Timestamp ? "/tr" : "/t",
+                                            useRFC3161Timestamp ? "/td sha256 /tr" : "/t",
                                             timestampUrl.ToString());
             }
             commandLine.AppendFormat(CultureInfo.InvariantCulture, "\"{0}\"", path);
@@ -887,7 +910,9 @@ namespace Microsoft.Build.Tasks.Deployment.ManifestUtilities
                 personalStore.Open(OpenFlags.ReadOnly);
                 X509Certificate2Collection foundCerts = personalStore.Certificates.Find(X509FindType.FindByThumbprint, cert.Thumbprint, false);
                 if (foundCerts.Count == 1)
+                {
                     return true;
+                }
             }
             finally
             {

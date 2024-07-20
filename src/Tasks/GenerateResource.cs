@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.CodeDom;
@@ -23,9 +23,9 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 #if FEATURE_APPDOMAIN
 using System.Runtime.Remoting;
+using System.Runtime.Serialization.Formatters.Binary;
 #endif
 using System.Runtime.Serialization;
-using System.Runtime.Serialization.Formatters.Binary;
 #if !FEATURE_ASSEMBLYLOADCONTEXT
 using System.Runtime.Versioning;
 using System.Security;
@@ -40,7 +40,9 @@ using Microsoft.Build.Shared;
 using Microsoft.Build.Shared.FileSystem;
 using Microsoft.Build.Tasks.ResourceHandling;
 using Microsoft.Build.Utilities;
+#if FEATURE_RESXREADER_LIVEDESERIALIZATION
 using Microsoft.Win32;
+#endif
 
 #nullable disable
 
@@ -51,10 +53,10 @@ namespace Microsoft.Build.Tasks
     /// to transform resource files.
     /// </summary>
     [RequiredRuntime("v2.0")]
-    public sealed partial class GenerateResource : TaskExtension
+    public sealed partial class GenerateResource : TaskExtension, IIncrementalTask
     {
 
-#region Fields
+        #region Fields
 
         // This cache helps us track the linked resource files listed inside of a resx resource file
         private ResGenDependencies _cache;
@@ -162,9 +164,9 @@ namespace Microsoft.Build.Tasks
         /// </summary>
         private List<ITaskItem> _satelliteInputs;
 
-#endregion  // fields
+        #endregion  // fields
 
-#region Properties
+        #region Properties
 
         /// <summary>
         /// The names of the items to be converted. The extension must be one of the
@@ -270,6 +272,12 @@ namespace Microsoft.Build.Tasks
             {
                 return _stronglyTypedLanguage;
             }
+        }
+
+        // Indicates whether any BinaryFormatter use should lead to a warning.
+        public bool WarnOnBinaryFormatterUse
+        {
+            get; set;
         }
 
         /// <summary>
@@ -534,7 +542,7 @@ namespace Microsoft.Build.Tasks
             set;
         }
 
-#endregion // properties
+        #endregion // properties
 
         /// <summary>
         /// Simple public constructor.
@@ -543,6 +551,8 @@ namespace Microsoft.Build.Tasks
         {
             // do nothing
         }
+
+        public bool FailIfNotIncremental { get; set; }
 
         /// <summary>
         /// Logs a Resgen.exe command line that indicates what parameters were
@@ -568,11 +578,9 @@ namespace Microsoft.Build.Tasks
                 {
                     if (!ExtractResWFiles)
                     {
-                        commandLineBuilder.AppendFileNamesIfNotNull
-                        (
+                        commandLineBuilder.AppendFileNamesIfNotNull(
                             new string[] { inputFiles[i].ItemSpec, outputFiles[i].ItemSpec },
-                            ","
-                        );
+                            ",");
                     }
                     else
                     {
@@ -587,12 +595,10 @@ namespace Microsoft.Build.Tasks
                 commandLineBuilder.AppendFileNamesIfNotNull(outputFiles.ToArray(), " ");
 
                 // append the strongly-typed resource details
-                commandLineBuilder.AppendSwitchIfNotNull
-                (
+                commandLineBuilder.AppendSwitchIfNotNull(
                     "/str:",
                     new string[] { StronglyTypedLanguage, StronglyTypedNamespace, StronglyTypedClassName, StronglyTypedFileName },
-                    ","
-                );
+                    ",");
             }
 
             Log.LogCommandLine(MessageImportance.Low, commandLineBuilder.ToString());
@@ -708,14 +714,34 @@ namespace Microsoft.Build.Tasks
 
                 GetResourcesToProcess(out inputsToProcess, out outputsToProcess, out cachedOutputFiles);
 
-                if (inputsToProcess.Count == 0 && !Log.HasLoggedErrors)
+                if (inputsToProcess.Count == 0)
                 {
-                    if (cachedOutputFiles.Count > 0)
+                    if (!Log.HasLoggedErrors)
                     {
-                        OutputResources = cachedOutputFiles.ToArray();
+                        if (cachedOutputFiles.Count > 0)
+                        {
+                            OutputResources = cachedOutputFiles.ToArray();
+                        }
+
+                        Log.LogMessageFromResources("GenerateResource.NothingOutOfDate");
+                    }
+                    else
+                    {
+                        // No valid sources found--failures should have been logged in GetResourcesToProcess
+                        return false;
+                    }
+                }
+                else if (FailIfNotIncremental)
+                {
+                    int maxCount = Math.Min(inputsToProcess.Count, outputsToProcess.Count);
+                    maxCount = Math.Min(maxCount, 5);  // Limit to just 5
+
+                    for (int index = 0; index < maxCount; index++)
+                    {
+                        Log.LogErrorFromResources("GenerateResource.ProcessingFile", inputsToProcess[index], outputsToProcess[index]);
                     }
 
-                    Log.LogMessageFromResources("GenerateResource.NothingOutOfDate");
+                    return false;
                 }
                 else
                 {
@@ -772,18 +798,14 @@ namespace Microsoft.Build.Tasks
                                 // create the list that we'll use to disconnect the taskitems once we're done
                                 _remotedTaskItems = new List<ITaskItem>();
 
-                                appDomain = AppDomain.CreateDomain
-                                (
+                                appDomain = AppDomain.CreateDomain(
                                     "generateResourceAppDomain",
                                     null,
-                                    AppDomain.CurrentDomain.SetupInformation
-                                );
+                                    AppDomain.CurrentDomain.SetupInformation);
 
-                                object obj = appDomain.CreateInstanceFromAndUnwrap
-                                   (
+                                object obj = appDomain.CreateInstanceFromAndUnwrap(
                                        typeof(ProcessResourceFiles).Module.FullyQualifiedName,
-                                       typeof(ProcessResourceFiles).FullName
-                                   );
+                                       typeof(ProcessResourceFiles).FullName);
 
                                 Type processType = obj.GetType();
                                 ErrorUtilities.VerifyThrow(processType == typeof(ProcessResourceFiles), "Somehow got a wrong and possibly incompatible type for ProcessResourceFiles.");
@@ -814,7 +836,8 @@ namespace Microsoft.Build.Tasks
                                         StronglyTypedClassName,
                                         PublicClass,
                                         ExtractResWFiles,
-                                        OutputDirectory);
+                                        OutputDirectory,
+                                        WarnOnBinaryFormatterUse);
 
                             this.StronglyTypedClassName = process.StronglyTypedClassName; // in case a default was chosen
                             this.StronglyTypedFileName = process.StronglyTypedFilename;   // in case a default was chosen
@@ -905,24 +928,29 @@ namespace Microsoft.Build.Tasks
             return !Log.HasLoggedErrors && outOfProcExecutionSucceeded;
         }
 
+#if FEATURE_RESXREADER_LIVEDESERIALIZATION
         private static readonly bool AllowMOTW = !NativeMethodsShared.IsWindows || (Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\.NETFramework\SDK", "AllowProcessOfUntrustedResourceFiles", null) is string allowUntrustedFiles && allowUntrustedFiles.Equals("true", StringComparison.OrdinalIgnoreCase));
 
         private const string CLSID_InternetSecurityManager = "7b8a2d94-0ac9-11d1-896c-00c04fb6bfc4";
         private const uint ZoneInternet = 3;
         private static IInternetSecurityManager internetSecurityManager = null;
+#endif
 
         // Resources can have arbitrarily serialized objects in them which can execute arbitrary code
         // so check to see if we should trust them before analyzing them
         private bool IsDangerous(String filename)
         {
+#if !FEATURE_RESXREADER_LIVEDESERIALIZATION
+            return false;
+        }
+#else
             // If they are opted out, there's no work to do
-            if (AllowMOTW || !NativeMethodsShared.IsWindows)
+            if (AllowMOTW)
             {
                 return false;
             }
 
             // First check the zone, if they are not an untrusted zone, they aren't dangerous
-
             if (internetSecurityManager == null)
             {
                 Type iismType = Type.GetTypeFromCLSID(new Guid(CLSID_InternetSecurityManager));
@@ -946,8 +974,8 @@ namespace Microsoft.Build.Tasks
                 // XML files are only dangerous if there are unrecognized objects in them
                 dangerous = false;
 
-                FileStream stream = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read);
-                XmlTextReader reader = new XmlTextReader(stream);
+                using FileStream stream = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read);
+                using XmlTextReader reader = new XmlTextReader(stream);
                 reader.DtdProcessing = DtdProcessing.Ignore;
                 reader.XmlResolver = null;
                 try
@@ -989,7 +1017,6 @@ namespace Microsoft.Build.Tasks
             return dangerous;
         }
 
-#if FEATURE_APPDOMAIN
         /// <summary>
         /// For setting OutputResources and ensuring it can be read after the second AppDomain has been unloaded.
         /// </summary>
@@ -1210,11 +1237,9 @@ namespace Microsoft.Build.Tasks
             int i = initialResourceIndex;
             while (currentCommand.Length < s_maximumCommandLength && i < inputsToProcess.Count)
             {
-                currentCommand.AppendFileNamesIfNotNull
-                    (
+                currentCommand.AppendFileNamesIfNotNull(
                         new ITaskItem[] { inputsToProcess[i], outputsToProcess[i] },
-                        ","
-                    );
+                        ",");
                 i++;
             }
 
@@ -1514,9 +1539,9 @@ namespace Microsoft.Build.Tasks
             ResGenDependencies.ResXFile resxFileInfo;
             try
             {
-                resxFileInfo = _cache.GetResXFileInfo(sourceFilePath, UsePreserializedResources);
+                resxFileInfo = _cache.GetResXFileInfo(sourceFilePath, UsePreserializedResources, Log, WarnOnBinaryFormatterUse);
             }
-            catch (Exception e)  when (!ExceptionHandling.NotExpectedIoOrXmlException(e) || e is MSBuildResXException)
+            catch (Exception e) when (!ExceptionHandling.NotExpectedIoOrXmlException(e) || e is MSBuildResXException)
             {
                 // Return true, so that resource processing will display the error
                 // No point logging a duplicate error here as well
@@ -1597,14 +1622,13 @@ namespace Microsoft.Build.Tasks
         private void GetStronglyTypedResourceToProcess(ref List<ITaskItem> inputsToProcess, ref List<ITaskItem> outputsToProcess)
         {
             bool needToRebuildSTR = false;
+            CodeDomProvider provider = null;
 
             // The resource file isn't out of date. So check whether the STR class file is.
             try
             {
                 if (StronglyTypedFileName == null)
                 {
-                    CodeDomProvider provider = null;
-
                     if (ProcessResourceFiles.TryCreateCodeDomProvider(Log, StronglyTypedLanguage, out provider))
                     {
                         StronglyTypedFileName = ProcessResourceFiles.GenerateDefaultStronglyTypedFilename(provider, OutputResources[0].ItemSpec);
@@ -1619,6 +1643,10 @@ namespace Microsoft.Build.Tasks
                 _unsuccessfullyCreatedOutFiles.Add(OutputResources[0].ItemSpec);
                 _stronglyTypedResourceSuccessfullyCreated = false;
                 return;
+            }
+            finally
+            {
+                provider?.Dispose();
             }
 
             // Now we have the filename, check if it's up to date
@@ -1736,9 +1764,10 @@ namespace Microsoft.Build.Tasks
 
                     try
                     {
-                        XmlReaderSettings readerSettings = new XmlReaderSettings();
-                        readerSettings.DtdProcessing = DtdProcessing.Ignore;
-                        reader = XmlReader.Create(source.ItemSpec, readerSettings);
+                        XmlReaderSettings readerSettings = new XmlReaderSettings { DtdProcessing = DtdProcessing.Ignore, CloseInput = true };
+
+                        FileStream fs = File.OpenRead(source.ItemSpec);
+                        reader = XmlReader.Create(fs, readerSettings);
 
                         while (reader.Read())
                         {
@@ -1798,15 +1827,13 @@ namespace Microsoft.Build.Tasks
                                             // we should create a separate app-domain, so that those assemblies
                                             // can be unlocked when the task is finished.
                                             // The type didn't start with "System." so return true.
-                                            Log.LogMessageFromResources
-                                            (
+                                            Log.LogMessageFromResources(
                                                 MessageImportance.Low,
                                                 "GenerateResource.SeparateAppDomainBecauseOfType",
                                                 name ?? String.Empty,
                                                 typeName,
                                                 source.ItemSpec,
-                                                ((IXmlLineInfo)reader).LineNumber
-                                            );
+                                                ((IXmlLineInfo)reader).LineNumber);
 
                                             return true;
                                         }
@@ -1844,15 +1871,13 @@ namespace Microsoft.Build.Tasks
                                     {
                                         if (NeedSeparateAppDomainBasedOnSerializedType(reader))
                                         {
-                                            Log.LogMessageFromResources
-                                            (
+                                            Log.LogMessageFromResources(
                                                 MessageImportance.Low,
                                                 "GenerateResource.SeparateAppDomainBecauseOfMimeType",
                                                 name ?? String.Empty,
                                                 mimeType,
                                                 source.ItemSpec,
-                                                ((IXmlLineInfo)reader).LineNumber
-                                            );
+                                                ((IXmlLineInfo)reader).LineNumber);
 
                                             return true;
                                         }
@@ -1876,28 +1901,24 @@ namespace Microsoft.Build.Tasks
                     }
                     catch (XmlException e)
                     {
-                        Log.LogMessageFromResources
-                                    (
+                        Log.LogMessageFromResources(
                                         MessageImportance.Low,
                                         "GenerateResource.SeparateAppDomainBecauseOfExceptionLineNumber",
                                         source.ItemSpec,
                                         ((IXmlLineInfo)reader).LineNumber,
-                                        e.Message
-                                    );
+                                        e.Message);
 
                         return true;
                     }
                     catch (SerializationException e)
                     {
-                        Log.LogMessageFromResources
-                                    (
+                        Log.LogMessageFromResources(
                                         MessageImportance.Low,
                                         "GenerateResource.SeparateAppDomainBecauseOfErrorDeserializingLineNumber",
                                         source.ItemSpec,
                                         name ?? String.Empty,
                                         ((IXmlLineInfo)reader).LineNumber,
-                                        e.Message
-                                    );
+                                        e.Message);
 
                         return true;
                     }
@@ -1915,13 +1936,11 @@ namespace Microsoft.Build.Tasks
 
                         // If there was any problem parsing the .resx then log a message and
                         // fall back to using a separate AppDomain.
-                        Log.LogMessageFromResources
-                                    (
+                        Log.LogMessageFromResources(
                                         MessageImportance.Low,
                                         "GenerateResource.SeparateAppDomainBecauseOfException",
                                         source.ItemSpec,
-                                        e.Message
-                                    );
+                                        e.Message);
 
                         // In case we need more information from the customer (given this has been heavily reported
                         // and we don't understand it properly) let the usual debug switch dump the stack.
@@ -1974,7 +1993,6 @@ namespace Microsoft.Build.Tasks
             // Return true to err on the side of caution. Error will appear later.
             return true;
         }
-#endif
 
         /// <summary>
         /// Deserializes a base64 block from a resx in order to figure out if its type is in the GAC.
@@ -1986,7 +2004,7 @@ namespace Microsoft.Build.Tasks
         {
             byte[] serializedData = ByteArrayFromBase64WrappedString(data);
 
-            BinaryFormatter binaryFormatter = new BinaryFormatter();
+            BinaryFormatter binaryFormatter = new();
 
             using (MemoryStream memoryStream = new MemoryStream(serializedData))
             {
@@ -1995,6 +2013,7 @@ namespace Microsoft.Build.Tasks
                 return result != null;
             }
         }
+#endif
 
         /// <summary>
         /// Chars that should be ignored in the nicely justified block of base64
@@ -2137,11 +2156,18 @@ namespace Microsoft.Build.Tasks
             {
                 if (StronglyTypedFileName == null)
                 {
-                    CodeDomProvider provider;
-                    if (ProcessResourceFiles.TryCreateCodeDomProvider(Log, StronglyTypedLanguage, out provider))
+                    CodeDomProvider provider = null;
+                    try
                     {
-                        StronglyTypedFileName = ProcessResourceFiles.GenerateDefaultStronglyTypedFilename(
-                            provider, OutputResources[0].ItemSpec);
+                        if (ProcessResourceFiles.TryCreateCodeDomProvider(Log, StronglyTypedLanguage, out provider))
+                        {
+                            StronglyTypedFileName = ProcessResourceFiles.GenerateDefaultStronglyTypedFilename(
+                                provider, OutputResources[0].ItemSpec);
+                        }
+                    }
+                    finally
+                    {
+                        provider?.Dispose();
                     }
                 }
 
@@ -2186,7 +2212,7 @@ namespace Microsoft.Build.Tasks
         : MarshalByRefObject
 #endif
     {
-#region fields
+        #region fields
         /// <summary>
         /// List of readers used for input.
         /// </summary>
@@ -2351,7 +2377,9 @@ namespace Microsoft.Build.Tasks
         /// </summary>
         private bool _useSourcePath = false;
 
-#endregion
+        private bool _logWarningForBinaryFormatter = false;
+
+        #endregion
 
         /// <summary>
         /// Process all files.
@@ -2371,7 +2399,8 @@ namespace Microsoft.Build.Tasks
             string classname,
             bool publicClass,
             bool extractingResWFiles,
-            string resWOutputDirectory)
+            string resWOutputDirectory,
+            bool logWarningForBinaryFormatter)
         {
             _logger = log;
             _assemblyFiles = assemblyFilesList;
@@ -2390,6 +2419,7 @@ namespace Microsoft.Build.Tasks
             _resWOutputDirectory = resWOutputDirectory;
             _portableLibraryCacheInfo = new List<ResGenDependencies.PortableLibraryFile>();
             _usePreserializedResources = usePreserializedResources;
+            _logWarningForBinaryFormatter = logWarningForBinaryFormatter;
 
 #if !FEATURE_ASSEMBLYLOADCONTEXT
             // If references were passed in, we will have to give the ResxResourceReader an object
@@ -2715,7 +2745,7 @@ namespace Microsoft.Build.Tasks
                             && GetFormat(inFile) != Format.Assembly
                             // outFileOrDir is a directory when the input file is an assembly
                             && GetFormat(outFileOrDir) != Format.Assembly)
-                            // Never delete an assembly since we don't ever actually write to assemblies.
+                        // Never delete an assembly since we don't ever actually write to assemblies.
                         {
                             RemoveCorruptedFile(outFileOrDir);
                         }
@@ -2994,7 +3024,7 @@ namespace Microsoft.Build.Tasks
                             }
                             else
                             {
-                                foreach (IResource resource in MSBuildResXReader.GetResourcesFromFile(filename, shouldUseSourcePath))
+                                foreach (IResource resource in MSBuildResXReader.GetResourcesFromFile(filename, shouldUseSourcePath, _logger, _logWarningForBinaryFormatter))
                                 {
                                     AddResource(reader, resource, filename, 0, 0);
                                 }
@@ -3071,9 +3101,7 @@ namespace Microsoft.Build.Tasks
                             targetFrameworkAttribute != null &&
                             (
                                 targetFrameworkAttribute.FrameworkName.StartsWith("Silverlight,", StringComparison.OrdinalIgnoreCase) ||
-                                targetFrameworkAttribute.FrameworkName.StartsWith("WindowsPhone,", StringComparison.OrdinalIgnoreCase)
-                            )
-                        )
+                                targetFrameworkAttribute.FrameworkName.StartsWith("WindowsPhone,", StringComparison.OrdinalIgnoreCase)))
                     {
                         // Skip Silverlight assemblies.
                         _logger.LogMessageFromResources("GenerateResource.SkippingExtractingFromNonSupportedFramework", name, targetFrameworkAttribute.FrameworkName);
@@ -3126,13 +3154,17 @@ namespace Microsoft.Build.Tasks
                 {
                     satCulture = assemblyName.CultureInfo;
                     if (!satCulture.Equals(CultureInfo.InvariantCulture))
+                    {
                         expectedExt = '.' + satCulture.Name + ".resources";
+                    }
                 }
 
                 foreach (String resName in resources)
                 {
                     if (!resName.EndsWith(".resources", StringComparison.OrdinalIgnoreCase)) // Skip non-.resources assembly blobs
+                    {
                         continue;
+                    }
 
                     if (mainAssembly)
                     {
@@ -3184,7 +3216,9 @@ namespace Microsoft.Build.Tasks
                             {
                                 // Remove the culture from the filename
                                 if (reader.outputFileName.EndsWith("." + reader.cultureName, StringComparison.OrdinalIgnoreCase))
+                                {
                                     reader.outputFileName = reader.outputFileName.Remove(reader.outputFileName.Length - (reader.cultureName.Length + 1));
+                                }
                             }
                             _readers.Add(reader);
 
@@ -3228,7 +3262,9 @@ namespace Microsoft.Build.Tasks
                     neutralResourcesLanguageAttribute = (NeutralResourcesLanguageAttribute)attrs[0];
                     bool fallbackToSatellite = neutralResourcesLanguageAttribute.Location == UltimateResourceFallbackLocation.Satellite;
                     if (!fallbackToSatellite && neutralResourcesLanguageAttribute.Location != UltimateResourceFallbackLocation.MainAssembly)
+                    {
                         _logger.LogWarningWithCodeFromResources(null, name, 0, 0, 0, 0, "GenerateResource.UnrecognizedUltimateResourceFallbackLocation", neutralResourcesLanguageAttribute.Location, name);
+                    }
                     // This MSBuild task needs to not report an error for main assemblies that don't have managed resources.
                 }
             }
@@ -3247,7 +3283,9 @@ namespace Microsoft.Build.Tasks
                 }
 
                 if (!ContainsProperlyNamedResourcesFiles(a, false))
+                {
                     _logger.LogWarningWithCodeFromResources("GenerateResource.SatelliteAssemblyContainsNoResourcesFile", assemblyName.CultureInfo.Name);
+                }
             }
             return neutralResourcesLanguageAttribute;
         }
@@ -3258,7 +3296,9 @@ namespace Microsoft.Build.Tasks
             foreach (String manifestResourceName in a.GetManifestResourceNames())
             {
                 if (manifestResourceName.EndsWith(postfix, StringComparison.OrdinalIgnoreCase))
+                {
                     return true;
+                }
             }
 
             return false;
@@ -3382,62 +3422,69 @@ namespace Microsoft.Build.Tasks
         /// <param name="sourceFile">The generated strongly typed filename</param>
         private void CreateStronglyTypedResources(ReaderInfo reader, String outFile, String inputFileName, out String sourceFile)
         {
-            CodeDomProvider provider;
-            if (!TryCreateCodeDomProvider(_logger, _stronglyTypedLanguage, out provider))
+            CodeDomProvider provider = null;
+            try
             {
-                sourceFile = null;
-                return;
-            }
-
-            // Default the class name if we need to
-            if (_stronglyTypedClassName == null)
-            {
-                _stronglyTypedClassName = Path.GetFileNameWithoutExtension(outFile);
-            }
-
-            // Default the filename if we need to
-            if (_stronglyTypedFilename == null)
-            {
-                _stronglyTypedFilename = GenerateDefaultStronglyTypedFilename(provider, outFile);
-            }
-            sourceFile = this.StronglyTypedFilename;
-
-            _logger.LogMessageFromResources("GenerateResource.CreatingSTR", _stronglyTypedFilename);
-
-            // Generate the STR class
-            String[] errors;
-            bool generateInternalClass = !_stronglyTypedClassIsPublic;
-            // StronglyTypedResourcesNamespace can be null and this is ok.
-            // If it is null then the default namespace (=stronglyTypedNamespace) is used.
-            CodeCompileUnit ccu = StronglyTypedResourceBuilder.Create(
-                    reader.resourcesHashTable,
-                    _stronglyTypedClassName,
-                    _stronglyTypedNamespace,
-                    _stronglyTypedResourcesNamespace,
-                    provider,
-                    generateInternalClass,
-                    out errors
-                    );
-
-            CodeGeneratorOptions codeGenOptions = new CodeGeneratorOptions();
-            using (TextWriter output = new StreamWriter(_stronglyTypedFilename))
-            {
-                provider.GenerateCodeFromCompileUnit(ccu, output, codeGenOptions);
-            }
-
-            if (errors.Length > 0)
-            {
-                _logger.LogErrorWithCodeFromResources("GenerateResource.ErrorFromCodeDom", inputFileName);
-                foreach (String error in errors)
+                if (!TryCreateCodeDomProvider(_logger, _stronglyTypedLanguage, out provider))
                 {
-                    _logger.LogErrorWithCodeFromResources("GenerateResource.CodeDomError", error);
+                    sourceFile = null;
+                    return;
+                }
+
+
+                // Default the class name if we need to
+                if (_stronglyTypedClassName == null)
+                {
+                    _stronglyTypedClassName = Path.GetFileNameWithoutExtension(outFile);
+                }
+
+                // Default the filename if we need to
+                if (_stronglyTypedFilename == null)
+                {
+                    _stronglyTypedFilename = GenerateDefaultStronglyTypedFilename(provider, outFile);
+                }
+                sourceFile = this.StronglyTypedFilename;
+
+                _logger.LogMessageFromResources("GenerateResource.CreatingSTR", _stronglyTypedFilename);
+
+                // Generate the STR class
+                String[] errors;
+                bool generateInternalClass = !_stronglyTypedClassIsPublic;
+                // StronglyTypedResourcesNamespace can be null and this is ok.
+                // If it is null then the default namespace (=stronglyTypedNamespace) is used.
+                CodeCompileUnit ccu = StronglyTypedResourceBuilder.Create(
+                        reader.resourcesHashTable,
+                        _stronglyTypedClassName,
+                        _stronglyTypedNamespace,
+                        _stronglyTypedResourcesNamespace,
+                        provider,
+                        generateInternalClass,
+                        out errors);
+
+                CodeGeneratorOptions codeGenOptions = new CodeGeneratorOptions();
+                using (TextWriter output = new StreamWriter(_stronglyTypedFilename))
+                {
+                    provider.GenerateCodeFromCompileUnit(ccu, output, codeGenOptions);
+                }
+
+                if (errors.Length > 0)
+                {
+                    _logger.LogErrorWithCodeFromResources("GenerateResource.ErrorFromCodeDom", inputFileName);
+                    foreach (String error in errors)
+                    {
+                        _logger.LogErrorWithCodeFromResources("GenerateResource.CodeDomError", error);
+                    }
+                }
+                else
+                {
+                    // No errors, and no exceptions - we presumably did create the STR class file
+                    // and it should get added to FilesWritten. So set a flag to indicate this.
+                    _stronglyTypedResourceSuccessfullyCreated = true;
                 }
             }
-            else
+            finally
             {
-                // No errors, and no exceptions - we presumably did create the STR class file
-                // and it should get added to FilesWritten. So set a flag to indicate this.
-                _stronglyTypedResourceSuccessfullyCreated = true;
+                provider?.Dispose();
             }
         }
 
@@ -3513,15 +3560,16 @@ namespace Microsoft.Build.Tasks
 #endif // FEATURE_RESXREADER_LIVEDESERIALIZATION
 
         /// <summary>
-        /// Read resources from a text format file
+        /// Read resources from a text format file.
         /// </summary>
-        /// <param name="reader">Reader info</param>
-        /// <param name="fileName">Input resources filename</param>
+        /// <param name="reader">Reader info.</param>
+        /// <param name="fileName">Input resources filename.</param>
         private void ReadTextResources(ReaderInfo reader, String fileName)
         {
             // Check for byte order marks in the beginning of the input file, but
             // default to UTF-8.
-            using (LineNumberStreamReader sr = new LineNumberStreamReader(fileName, new UTF8Encoding(true), true))
+            using var fs = File.Open(fileName, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using (LineNumberStreamReader sr = new LineNumberStreamReader(fs, new UTF8Encoding(true), true))
             {
                 StringBuilder name = new StringBuilder(255);
                 StringBuilder value = new StringBuilder(2048);
@@ -3569,15 +3617,21 @@ namespace Microsoft.Build.Tasks
                     while (ch != '=')
                     {
                         if (ch == '\r' || ch == '\n')
+                        {
                             throw new TextFileException(_logger.FormatResourceString("GenerateResource.NoEqualsInLine", name), fileName, sr.LineNumber, sr.LinePosition);
+                        }
 
                         name.Append((char)ch);
                         ch = sr.Read();
                         if (ch == -1)
+                        {
                             break;
+                        }
                     }
                     if (name.Length == 0)
+                    {
                         throw new TextFileException(_logger.FormatResourceString("GenerateResource.NoNameInLine"), fileName, sr.LineNumber, sr.LinePosition);
+                    }
 
                     // For the INF file, we must allow a space on both sides of the equals
                     // sign.  Deal with it.
@@ -3586,9 +3640,12 @@ namespace Microsoft.Build.Tasks
                         name.Length--;
                     }
                     ch = sr.Read(); // move past =
+
                     // If it exists, move past the first space after the equals sign.
                     if (ch == ' ')
+                    {
                         ch = sr.Read();
+                    }
 
                     // Read in value
                     value.Length = 0;
@@ -3627,7 +3684,10 @@ namespace Microsoft.Build.Tasks
                                     {
                                         int n = sr.Read(hex, index, numChars);
                                         if (n == 0)
+                                        {
                                             throw new TextFileException(_logger.FormatResourceString("GenerateResource.InvalidEscape", name.ToString(), (char)ch), fileName, sr.LineNumber, sr.LinePosition);
+                                        }
+
                                         index += n;
                                         numChars -= n;
                                     }
@@ -3722,10 +3782,11 @@ namespace Microsoft.Build.Tasks
                     // In that case, the first time we catch an exception indicating that the XML written to disk is malformed,
                     // specifically an InvalidOperationException: "Token EndElement in state Error would result in an invalid XML document."
                     try { writer.Dispose(); }
-                    catch (Exception) { } // We agressively catch all exception types since we already have one we will throw.
+                    catch (Exception) { } // We aggressively catch all exception types since we already have one we will throw.
+
                     // The second time we catch the out of disk space exception.
                     try { writer.Dispose(); }
-                    catch (Exception) { } // We agressively catch all exception types since we already have one we will throw.
+                    catch (Exception) { } // We aggressively catch all exception types since we already have one we will throw.
                     throw capturedException; // In the event of a full disk, this is an out of disk space IOException.
                 }
             }
@@ -3834,8 +3895,8 @@ namespace Microsoft.Build.Tasks
             private int _lineNumber;
             private int _col;
 
-            internal LineNumberStreamReader(String fileName, Encoding encoding, bool detectEncoding)
-                : base(File.Open(fileName, FileMode.Open, FileAccess.Read, FileShare.Read), encoding, detectEncoding)
+            internal LineNumberStreamReader(Stream fileStream, Encoding encoding, bool detectEncoding)
+                : base(fileStream, encoding, detectEncoding)
             {
                 _lineNumber = 1;
                 _col = 0;
@@ -3919,6 +3980,9 @@ namespace Microsoft.Build.Tasks
             private int lineNumber;
             private int column;
 
+#if NET8_0_OR_GREATER
+            [Obsolete(DiagnosticId = "SYSLIB0051")]
+#endif
             private TextFileException(SerializationInfo info, StreamingContext context)
                 : base(info, context)
             {
@@ -3947,7 +4011,7 @@ namespace Microsoft.Build.Tasks
                 get { return column; }
             }
         }
-#endregion // Code from ResGen.EXE
+        #endregion // Code from ResGen.EXE
     }
 
 #if !FEATURE_ASSEMBLYLOADCONTEXT

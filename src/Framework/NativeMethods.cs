@@ -10,9 +10,7 @@ using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
-using System.Text;
-using System.Threading;
-
+using Microsoft.Build.Framework.Logging;
 using Microsoft.Build.Shared;
 using Microsoft.Win32;
 using Microsoft.Win32.SafeHandles;
@@ -25,7 +23,7 @@ namespace Microsoft.Build.Framework;
 
 internal static class NativeMethods
 {
-#region Constants
+    #region Constants
 
     internal const uint ERROR_INSUFFICIENT_BUFFER = 0x8007007A;
     internal const uint STARTUP_LOADER_SAFEMODE = 0x10;
@@ -37,6 +35,8 @@ internal static class NativeMethods
     internal const uint RUNTIME_INFO_DONT_SHOW_ERROR_DIALOG = 0x40;
     internal const uint FILE_TYPE_CHAR = 0x0002;
     internal const Int32 STD_OUTPUT_HANDLE = -11;
+    internal const Int32 STD_ERROR_HANDLE = -12;
+    internal const uint ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x0004;
     internal const uint RPC_S_CALLPENDING = 0x80010115;
     internal const uint E_ABORT = (uint)0x80004004;
 
@@ -59,6 +59,7 @@ internal static class NativeMethods
     internal static HandleRef NullHandleRef = new HandleRef(null, IntPtr.Zero);
 
     internal static IntPtr NullIntPtr = new IntPtr(0);
+    internal static IntPtr InvalidHandle = new IntPtr(-1);
 
     // As defined in winnt.h:
     internal const ushort PROCESSOR_ARCHITECTURE_INTEL = 0;
@@ -72,9 +73,15 @@ internal static class NativeMethods
     internal const uint WAIT_OBJECT_0 = 0x00000000;
     internal const uint WAIT_TIMEOUT = 0x00000102;
 
-#endregion
+    #endregion
 
-#region Enums
+    #region Enums
+
+    internal enum StreamHandleType
+    {
+        StdOut = STD_OUTPUT_HANDLE,
+        StdErr = STD_ERROR_HANDLE,
+    };
 
     private enum PROCESSINFOCLASS : int
     {
@@ -195,13 +202,35 @@ internal static class NativeMethods
         // ARM64
         ARM64,
 
+        // WebAssembly
+        WASM,
+
+        // S390x
+        S390X,
+
+        // LongAarch64
+        LOONGARCH64,
+
+        // 32-bit ARMv6
+        ARMV6,
+
+        // PowerPC 64-bit (little-endian)
+        PPC64LE,
+
         // Who knows
         Unknown
     }
 
-#endregion
+    internal enum SymbolicLink
+    {
+        File = 0,
+        Directory = 1,
+        AllowUnprivilegedCreate = 2,
+    }
 
-#region Structs
+    #endregion
+
+    #region Structs
 
     /// <summary>
     /// Structure that contain information about the system on which we are running
@@ -323,7 +352,7 @@ internal static class NativeMethods
         public UIntPtr UniqueProcessId;
         public UIntPtr InheritedFromUniqueProcessId;
 
-        public uint Size
+        public readonly uint Size
         {
             get
             {
@@ -428,7 +457,8 @@ internal static class NativeMethods
             else
             {
                 ProcessorArchitectures processorArchitecture = ProcessorArchitectures.Unknown;
-#if !NET35
+
+#if NETCOREAPP || NETSTANDARD1_1_OR_GREATER
                 // Get the architecture from the runtime.
                 processorArchitecture = RuntimeInformation.OSArchitecture switch
                 {
@@ -436,64 +466,21 @@ internal static class NativeMethods
                     Architecture.Arm64 => ProcessorArchitectures.ARM64,
                     Architecture.X64 => ProcessorArchitectures.X64,
                     Architecture.X86 => ProcessorArchitectures.X86,
+#if NET5_0_OR_GREATER
+                    Architecture.Wasm => ProcessorArchitectures.WASM,
+#endif
+#if NET6_0_OR_GREATER
+                    Architecture.S390x => ProcessorArchitectures.S390X,
+#endif
+#if NET7_0_OR_GREATER
+                    Architecture.LoongArch64 => ProcessorArchitectures.LOONGARCH64,
+                    Architecture.Armv6 => ProcessorArchitectures.ARMV6,
+                    Architecture.Ppc64le => ProcessorArchitectures.PPC64LE,
+#endif
                     _ => ProcessorArchitectures.Unknown,
                 };
-#endif
-                // Fall back to 'uname -m' to get the architecture.
-                if (processorArchitecture == ProcessorArchitectures.Unknown)
-                {
-                    try
-                    {
-                        // On Unix run 'uname -m' to get the architecture. It's common for Linux and Mac
-                        using (
-                            var proc =
-                                Process.Start(
-                                    new ProcessStartInfo("uname")
-                                    {
-                                        Arguments = "-m",
-                                        UseShellExecute = false,
-                                        RedirectStandardOutput = true,
-                                        CreateNoWindow = true
-                                    }))
-                        {
-                            string arch = null;
-                            if (proc != null)
-                            {
-                                arch = proc.StandardOutput.ReadLine();
-                                proc.WaitForExit();
-                            }
 
-                            if (!string.IsNullOrEmpty(arch))
-                            {
-                                if (arch.StartsWith("x86_64", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    ProcessorArchitectureType = ProcessorArchitectures.X64;
-                                }
-                                else if (arch.StartsWith("ia64", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    ProcessorArchitectureType = ProcessorArchitectures.IA64;
-                                }
-                                else if (arch.StartsWith("arm", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    ProcessorArchitectureType = ProcessorArchitectures.ARM;
-                                }
-                                else if (arch.StartsWith("aarch64", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    ProcessorArchitectureType = ProcessorArchitectures.ARM64;
-                                }
-                                else if (arch.StartsWith("i", StringComparison.OrdinalIgnoreCase)
-                                        && arch.EndsWith("86", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    ProcessorArchitectureType = ProcessorArchitectures.X86;
-                                }
-                            }
-                        }
-                    }
-                    catch
-                    {
-                        // Best effort: fall back to Unknown
-                    }
-                }
+#endif
 
                 ProcessorArchitectureTypeNative = ProcessorArchitectureType = processorArchitecture;
             }
@@ -503,17 +490,10 @@ internal static class NativeMethods
     public static int GetLogicalCoreCount()
     {
         int numberOfCpus = Environment.ProcessorCount;
-#if !MONO
-        // .NET Core on Windows returns a core count limited to the current NUMA node
+        // .NET on Windows returns a core count limited to the current NUMA node
         //     https://github.com/dotnet/runtime/issues/29686
         // so always double-check it.
-        if (IsWindows
-#if NETFRAMEWORK
-            // .NET Framework calls Windows APIs that have a core count limit (32/64 depending on process bitness).
-            // So if we get a high core count on full framework, double-check it.
-            && (numberOfCpus >= 32)
-#endif
-            )
+        if (IsWindows)
         {
             var result = GetLogicalCoreCountOnWindows();
             if (result != -1)
@@ -521,7 +501,6 @@ internal static class NativeMethods
                 numberOfCpus = result;
             }
         }
-#endif
 
         return numberOfCpus;
     }
@@ -533,7 +512,7 @@ internal static class NativeMethods
     /// https://github.com/dotnet/runtime/blob/221ad5b728f93489655df290c1ea52956ad8f51c/src/libraries/System.Runtime.Extensions/src/System/Environment.Windows.cs#L171-L210
     /// </summary>
     [SupportedOSPlatform("windows")]
-    private unsafe static int GetLogicalCoreCountOnWindows()
+    private static unsafe int GetLogicalCoreCountOnWindows()
     {
         uint len = 0;
         const int ERROR_INSUFFICIENT_BUFFER = 122;
@@ -572,9 +551,9 @@ internal static class NativeMethods
         return -1;
     }
 
-#endregion
+    #endregion
 
-#region Member data
+    #region Member data
 
     internal static bool HasMaxPath => MaxPath == MAX_PATH;
 
@@ -615,25 +594,70 @@ internal static class NativeMethods
         }
     }
 
-    internal static bool IsMaxPathLegacyWindows()
+    internal enum LongPathsStatus
     {
+        /// <summary>
+        ///  The registry key is set to 0 or does not exist.
+        /// </summary>
+        Disabled,
+
+        /// <summary>
+        /// The registry key does not exist.
+        /// </summary>
+        Missing,
+
+        /// <summary>
+        /// The registry key is set to 1.
+        /// </summary>
+        Enabled,
+
+        /// <summary>
+        /// Not on Windows.
+        /// </summary>
+        NotApplicable,
+    }
+
+    internal static LongPathsStatus IsLongPathsEnabled()
+    {
+        if (!IsWindows)
+        {
+            return LongPathsStatus.NotApplicable;
+        }
+
         try
         {
-            return IsWindows && !IsLongPathsEnabledRegistry();
+            return IsLongPathsEnabledRegistry();
         }
         catch
         {
-            return true;
+            return LongPathsStatus.Disabled;
         }
     }
 
+    internal static bool IsMaxPathLegacyWindows()
+    {
+        var longPathsStatus = IsLongPathsEnabled();
+        return longPathsStatus == LongPathsStatus.Disabled || longPathsStatus == LongPathsStatus.Missing;
+    }
+
     [SupportedOSPlatform("windows")]
-    private static bool IsLongPathsEnabledRegistry()
+    private static LongPathsStatus IsLongPathsEnabledRegistry()
     {
         using (RegistryKey fileSystemKey = Registry.LocalMachine.OpenSubKey(WINDOWS_FILE_SYSTEM_REGISTRY_KEY))
         {
-            object longPathsEnabledValue = fileSystemKey?.GetValue(WINDOWS_LONG_PATHS_ENABLED_VALUE_NAME, 0);
-            return fileSystemKey != null && Convert.ToInt32(longPathsEnabledValue) == 1;
+            object longPathsEnabledValue = fileSystemKey?.GetValue(WINDOWS_LONG_PATHS_ENABLED_VALUE_NAME, -1);
+            if (fileSystemKey != null && Convert.ToInt32(longPathsEnabledValue) == -1)
+            {
+                return LongPathsStatus.Missing;
+            }
+            else if (fileSystemKey != null && Convert.ToInt32(longPathsEnabledValue) == 1)
+            {
+                return LongPathsStatus.Enabled;
+            }
+            else
+            { 
+                return LongPathsStatus.Disabled;
+            }
         }
     }
 
@@ -653,10 +677,11 @@ internal static class NativeMethods
     /// <summary>
     /// Gets a flag indicating if we are running under Linux
     /// </summary>
+    [SupportedOSPlatformGuard("linux")]
     internal static bool IsLinux
     {
 #if CLR2COMPATIBILITY
-            get { return false; }
+        get { return false; }
 #else
         get { return RuntimeInformation.IsOSPlatform(OSPlatform.Linux); }
 #endif
@@ -668,7 +693,7 @@ internal static class NativeMethods
     internal static bool IsBSD
     {
 #if CLR2COMPATIBILITY
-            get { return false; }
+        get { return false; }
 #else
         get
         {
@@ -677,34 +702,6 @@ internal static class NativeMethods
                    RuntimeInformation.IsOSPlatform(OSPlatform.Create("OPENBSD"));
         }
 #endif
-    }
-
-    private static readonly object IsMonoLock = new object();
-
-    private static bool? _isMono;
-
-    /// <summary>
-    /// Gets a flag indicating if we are running under MONO
-    /// </summary>
-    internal static bool IsMono
-    {
-        get
-        {
-            if (_isMono != null) return _isMono.Value;
-
-            lock (IsMonoLock)
-            {
-                if (_isMono == null)
-                {
-                    // There could be potentially expensive TypeResolve events, so cache IsMono.
-                    // Also, VS does not host Mono runtimes, so turn IsMono off when msbuild is running under VS
-                    _isMono = !BuildEnvironmentState.s_runningInVisualStudio &&
-                              Type.GetType("Mono.Runtime") != null;
-                }
-            }
-
-            return _isMono.Value;
-        }
     }
 
 #if !CLR2COMPATIBILITY
@@ -717,7 +714,7 @@ internal static class NativeMethods
     internal static bool IsWindows
     {
 #if CLR2COMPATIBILITY
-            get { return true; }
+        get { return true; }
 #else
         get
         {
@@ -737,7 +734,7 @@ internal static class NativeMethods
     internal static bool IsOSX
     {
 #if CLR2COMPATIBILITY
-            get { return false; }
+        get { return false; }
 #else
         get
         {
@@ -754,6 +751,22 @@ internal static class NativeMethods
     internal static string OSName
     {
         get { return IsWindows ? "Windows_NT" : "Unix"; }
+    }
+
+    /// <summary>
+    /// Framework named as presented to users (for example in version info).
+    /// </summary>
+    internal static string FrameworkName
+    {
+        get
+        {
+#if RUNTIME_TYPE_NETCORE
+            const string frameworkName = ".NET";
+#else
+            const string frameworkName = ".NET Framework";
+#endif
+            return frameworkName;
+        }
     }
 
     /// <summary>
@@ -862,9 +875,9 @@ internal static class NativeMethods
     /// </summary>
     internal static ProcessorArchitectures ProcessorArchitectureNative => SystemInformation.ProcessorArchitectureTypeNative;
 
-#endregion
+    #endregion
 
-#region Wrapper methods
+    #region Wrapper methods
 
 
     [DllImport("kernel32.dll", SetLastError = true)]
@@ -1021,6 +1034,30 @@ internal static class NativeMethods
         return null;
     }
 
+    internal static bool MakeSymbolicLink(string newFileName, string existingFileName, ref string errorMessage)
+    {
+        bool symbolicLinkCreated;
+        if (IsWindows)
+        {
+            Version osVersion = Environment.OSVersion.Version;
+            SymbolicLink flags = SymbolicLink.File;
+            if (osVersion.Major >= 11 || (osVersion.Major == 10 && osVersion.Build >= 14972))
+            {
+                flags |= SymbolicLink.AllowUnprivilegedCreate;
+            }
+
+            symbolicLinkCreated = CreateSymbolicLink(newFileName, existingFileName, flags);
+            errorMessage = symbolicLinkCreated ? null : Marshal.GetExceptionForHR(Marshal.GetHRForLastWin32Error()).Message;
+        }
+        else
+        {
+            symbolicLinkCreated = symlink(existingFileName, newFileName) == 0;
+            errorMessage = symbolicLinkCreated ? null : Marshal.GetLastWin32Error().ToString();
+        }
+
+        return symbolicLinkCreated;
+    }
+
     /// <summary>
     /// Get the last write time of the fullpath to the file.
     /// </summary>
@@ -1034,7 +1071,7 @@ internal static class NativeMethods
     internal static DateTime GetLastWriteFileUtcTime(string fullPath)
     {
 #if !CLR2COMPATIBILITY && !MICROSOFT_BUILD_ENGINE_OM_UNITTESTS
-        if (Traits.Instance.EscapeHatches.AlwaysDoImmutableFilesUpToDateCheck || !ChangeWaves.AreFeaturesEnabled(ChangeWaves.Wave17_0))
+        if (Traits.Instance.EscapeHatches.AlwaysDoImmutableFilesUpToDateCheck)
         {
             return LastWriteFileUtcTime(fullPath);
         }
@@ -1098,6 +1135,23 @@ internal static class NativeMethods
     }
 
     /// <summary>
+    /// Get the SafeFileHandle for a file, while skipping reparse points (going directly to target file).
+    /// </summary>
+    /// <param name="fullPath">Full path to the file in the filesystem</param>
+    /// <returns>the SafeFileHandle for a file (target file in case of symlinks)</returns>
+    [SupportedOSPlatform("windows")]
+    private static SafeFileHandle OpenFileThroughSymlinks(string fullPath)
+    {
+        return CreateFile(fullPath,
+            GENERIC_READ,
+            FILE_SHARE_READ,
+            IntPtr.Zero,
+            OPEN_EXISTING,
+            FILE_ATTRIBUTE_NORMAL, /* No FILE_FLAG_OPEN_REPARSE_POINT; read through to content */
+            IntPtr.Zero);
+    }
+
+    /// <summary>
     /// Get the last write time of the content pointed to by a file path.
     /// </summary>
     /// <param name="fullPath">Full path to the file in the filesystem</param>
@@ -1111,14 +1165,7 @@ internal static class NativeMethods
     {
         DateTime fileModifiedTime = DateTime.MinValue;
 
-        using (SafeFileHandle handle =
-            CreateFile(fullPath,
-                GENERIC_READ,
-                FILE_SHARE_READ,
-                IntPtr.Zero,
-                OPEN_EXISTING,
-                FILE_ATTRIBUTE_NORMAL, /* No FILE_FLAG_OPEN_REPARSE_POINT; read through to content */
-                IntPtr.Zero))
+        using (SafeFileHandle handle = OpenFileThroughSymlinks(fullPath))
         {
             if (!handle.IsInvalid)
             {
@@ -1199,14 +1246,13 @@ internal static class NativeMethods
 
             // Grab the process handle.  We want to keep this open for the duration of the function so that
             // it cannot be reused while we are running.
-            SafeProcessHandle hProcess = OpenProcess(eDesiredAccess.PROCESS_QUERY_INFORMATION, false, processIdToKill);
-            if (hProcess.IsInvalid)
+            using (SafeProcessHandle hProcess = OpenProcess(eDesiredAccess.PROCESS_QUERY_INFORMATION, false, processIdToKill))
             {
-                return;
-            }
+                if (hProcess.IsInvalid)
+                {
+                    return;
+                }
 
-            try
-            {
                 try
                 {
                     // Kill this process, so that no further children can be created.
@@ -1237,11 +1283,6 @@ internal static class NativeMethods
                     }
                 }
             }
-            finally
-            {
-                // Release the handle.  After this point no more children of this process exist and this process has also exited.
-                hProcess.Dispose();
-            }
         }
         finally
         {
@@ -1270,7 +1311,7 @@ internal static class NativeMethods
                 // using (var r = FileUtilities.OpenRead("/proc/" + processId + "/stat"))
                 // and could be again when FileUtilities moves to Framework
 
-                using var fileStream = new FileStream("/proc/" + processId + "/stat", FileMode.Open, FileAccess.Read);
+                using var fileStream = new FileStream("/proc/" + processId + "/stat", FileMode.Open, System.IO.FileAccess.Read);
                 using StreamReader r = new(fileStream);
 
                 line = r.ReadLine();
@@ -1294,11 +1335,9 @@ internal static class NativeMethods
         else
 #endif
         {
-            SafeProcessHandle hProcess = OpenProcess(eDesiredAccess.PROCESS_QUERY_INFORMATION, false, processId);
-
-            if (!hProcess.IsInvalid)
+            using SafeProcessHandle hProcess = OpenProcess(eDesiredAccess.PROCESS_QUERY_INFORMATION, false, processId);
             {
-                try
+                if (!hProcess.IsInvalid)
                 {
                     // UNDONE: NtQueryInformationProcess will fail if we are not elevated and other process is. Advice is to change to use ToolHelp32 API's
                     // For now just return zero and worst case we will not kill some children.
@@ -1309,10 +1348,6 @@ internal static class NativeMethods
                     {
                         ParentID = (int)pbi.InheritedFromUniqueProcessId;
                     }
-                }
-                finally
-                {
-                    hProcess.Dispose();
                 }
             }
         }
@@ -1335,34 +1370,38 @@ internal static class NativeMethods
             {
                 // Hold the child process handle open so that children cannot die and restart with a different parent after we've started looking at it.
                 // This way, any handle we pass back is guaranteed to be one of our actual children.
+#pragma warning disable CA2000 // Dispose objects before losing scope - caller must dispose returned handles
                 SafeProcessHandle childHandle = OpenProcess(eDesiredAccess.PROCESS_QUERY_INFORMATION, false, possibleChildProcess.Id);
-                if (childHandle.IsInvalid)
+#pragma warning restore CA2000 // Dispose objects before losing scope
                 {
-                    continue;
-                }
-
-                bool keepHandle = false;
-                try
-                {
-                    if (possibleChildProcess.StartTime > parentStartTime)
+                    if (childHandle.IsInvalid)
                     {
-                        int childParentProcessId = GetParentProcessId(possibleChildProcess.Id);
-                        if (childParentProcessId != 0)
+                        continue;
+                    }
+
+                    bool keepHandle = false;
+                    try
+                    {
+                        if (possibleChildProcess.StartTime > parentStartTime)
                         {
-                            if (parentProcessId == childParentProcessId)
+                            int childParentProcessId = GetParentProcessId(possibleChildProcess.Id);
+                            if (childParentProcessId != 0)
                             {
-                                // Add this one
-                                myChildren.Add(new KeyValuePair<int, SafeProcessHandle>(possibleChildProcess.Id, childHandle));
-                                keepHandle = true;
+                                if (parentProcessId == childParentProcessId)
+                                {
+                                    // Add this one
+                                    myChildren.Add(new KeyValuePair<int, SafeProcessHandle>(possibleChildProcess.Id, childHandle));
+                                    keepHandle = true;
+                                }
                             }
                         }
                     }
-                }
-                finally
-                {
-                    if (!keepHandle)
+                    finally
                     {
-                        childHandle.Dispose();
+                        if (!keepHandle)
+                        {
+                            childHandle.Dispose();
+                        }
                     }
                 }
             }
@@ -1375,7 +1414,7 @@ internal static class NativeMethods
     /// Internal, optimized GetCurrentDirectory implementation that simply delegates to the native method
     /// </summary>
     /// <returns></returns>
-    internal unsafe static string GetCurrentDirectory()
+    internal static unsafe string GetCurrentDirectory()
     {
 #if FEATURE_LEGACY_GETCURRENTDIRECTORY
         if (IsWindows)
@@ -1390,7 +1429,7 @@ internal static class NativeMethods
     }
 
     [SupportedOSPlatform("windows")]
-    private unsafe static int GetCurrentDirectoryWin32(int nBufferLength, char* lpBuffer)
+    private static unsafe int GetCurrentDirectoryWin32(int nBufferLength, char* lpBuffer)
     {
         int pathLength = GetCurrentDirectory(nBufferLength, lpBuffer);
         VerifyThrowWin32Result(pathLength);
@@ -1398,7 +1437,7 @@ internal static class NativeMethods
     }
 
     [SupportedOSPlatform("windows")]
-    internal unsafe static string GetFullPath(string path)
+    internal static unsafe string GetFullPath(string path)
     {
         int bufferSize = GetFullPathWin32(path, 0, null, IntPtr.Zero);
         char* buffer = stackalloc char[bufferSize];
@@ -1408,7 +1447,7 @@ internal static class NativeMethods
     }
 
     [SupportedOSPlatform("windows")]
-    private unsafe static int GetFullPathWin32(string target, int bufferLength, char* buffer, IntPtr mustBeZero)
+    private static unsafe int GetFullPathWin32(string target, int bufferLength, char* buffer, IntPtr mustBeZero)
     {
         int pathLength = GetFullPathName(target, bufferLength, buffer, mustBeZero);
         VerifyThrowWin32Result(pathLength);
@@ -1422,7 +1461,7 @@ internal static class NativeMethods
     /// <param name="len">The length of the buffer.</param>
     /// <param name="s">The string.</param>
     /// <returns>True only if the contents of <paramref name="s"/> and the first <paramref name="len"/> characters in <paramref name="buffer"/> are identical.</returns>
-    private unsafe static bool AreStringsEqual(char* buffer, int len, string s)
+    private static unsafe bool AreStringsEqual(char* buffer, int len, string s)
     {
         if (len != s.Length)
         {
@@ -1450,9 +1489,83 @@ internal static class NativeMethods
         }
     }
 
-#endregion
+#if !CLR2COMPATIBILITY
+    internal static (bool acceptAnsiColorCodes, bool outputIsScreen, uint? originalConsoleMode) QueryIsScreenAndTryEnableAnsiColorCodes(StreamHandleType handleType = StreamHandleType.StdOut)
+    {
+        if (Console.IsOutputRedirected)
+        {
+            // There's no ANSI terminal support if console output is redirected.
+            return (acceptAnsiColorCodes: false, outputIsScreen: false, originalConsoleMode: null);
+        }
 
-#region PInvoke
+        bool acceptAnsiColorCodes = false;
+        bool outputIsScreen = false;
+        uint? originalConsoleMode = null;
+        if (IsWindows)
+        {
+            try
+            {
+                IntPtr outputStream = GetStdHandle((int)handleType);
+                if (GetConsoleMode(outputStream, out uint consoleMode))
+                {
+                    if ((consoleMode & ENABLE_VIRTUAL_TERMINAL_PROCESSING) == ENABLE_VIRTUAL_TERMINAL_PROCESSING)
+                    {
+                        // Console is already in required state.
+                        acceptAnsiColorCodes = true;
+                    }
+                    else
+                    {
+                        originalConsoleMode = consoleMode;
+                        consoleMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+                        if (SetConsoleMode(outputStream, consoleMode) && GetConsoleMode(outputStream, out consoleMode))
+                        {
+                            // We only know if vt100 is supported if the previous call actually set the new flag, older
+                            // systems ignore the setting.
+                            acceptAnsiColorCodes = (consoleMode & ENABLE_VIRTUAL_TERMINAL_PROCESSING) == ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+                        }
+                    }
+
+                    uint fileType = GetFileType(outputStream);
+                    // The std out is a char type (LPT or Console).
+                    outputIsScreen = fileType == FILE_TYPE_CHAR;
+                    acceptAnsiColorCodes &= outputIsScreen;
+                }
+            }
+            catch
+            {
+                // In the unlikely case that the above fails we just ignore and continue.
+            }
+        }
+        else
+        {
+            // On posix OSes detect whether the terminal supports VT100 from the value of the TERM environment variable.
+            acceptAnsiColorCodes = AnsiDetector.IsAnsiSupported(Environment.GetEnvironmentVariable("TERM"));
+            // It wasn't redirected as tested above so we assume output is screen/console
+            outputIsScreen = true;
+        }
+        return (acceptAnsiColorCodes, outputIsScreen, originalConsoleMode);
+    }
+
+    internal static void RestoreConsoleMode(uint? originalConsoleMode, StreamHandleType handleType = StreamHandleType.StdOut)
+    {
+        if (IsWindows && originalConsoleMode is not null)
+        {
+            IntPtr stdOut = GetStdHandle((int)handleType);
+            _ = SetConsoleMode(stdOut, originalConsoleMode.Value);
+        }
+    }
+#endif // !CLR2COMPATIBILITY
+
+    #endregion
+
+    #region PInvoke
+    [SupportedOSPlatform("linux")]
+    [DllImport("libc", SetLastError = true)]
+    internal static extern int chmod(string pathname, int mode);
+
+    [SupportedOSPlatform("linux")]
+    [DllImport("libc", SetLastError = true)]
+    internal static extern int mkdir(string path, int mode);
 
     /// <summary>
     /// Gets the current OEM code page which is used by console apps
@@ -1500,10 +1613,16 @@ internal static class NativeMethods
     [SupportedOSPlatform("windows")]
     internal static extern uint GetFileType(IntPtr hFile);
 
+    [DllImport("kernel32.dll")]
+    internal static extern bool GetConsoleMode(IntPtr hConsoleHandle, out uint lpMode);
+
+    [DllImport("kernel32.dll")]
+    internal static extern bool SetConsoleMode(IntPtr hConsoleHandle, uint dwMode);
+
     [SuppressMessage("Microsoft.Usage", "CA2205:UseManagedEquivalentsOfWin32Api", Justification = "Using unmanaged equivalent for performance reasons")]
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
     [SupportedOSPlatform("windows")]
-    internal unsafe static extern int GetCurrentDirectory(int nBufferLength, char* lpBuffer);
+    internal static extern unsafe int GetCurrentDirectory(int nBufferLength, char* lpBuffer);
 
     [SuppressMessage("Microsoft.Usage", "CA2205:UseManagedEquivalentsOfWin32Api", Justification = "Using unmanaged equivalent for performance reasons")]
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode, EntryPoint = "SetCurrentDirectory")]
@@ -1531,7 +1650,7 @@ internal static class NativeMethods
 
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
     [SupportedOSPlatform("windows")]
-    internal static unsafe extern int GetFullPathName(string target, int bufferLength, char* buffer, IntPtr mustBeZero);
+    internal static extern unsafe int GetFullPathName(string target, int bufferLength, char* buffer, IntPtr mustBeZero);
 
     [DllImport("KERNEL32.DLL")]
     [SupportedOSPlatform("windows")]
@@ -1587,8 +1706,7 @@ internal static class NativeMethods
         IntPtr lpSecurityAttributes,
         uint dwCreationDisposition,
         uint dwFlagsAndAttributes,
-        IntPtr hTemplateFile
-        );
+        IntPtr hTemplateFile);
 
     [DllImport("kernel32.dll", SetLastError = true)]
     [SupportedOSPlatform("windows")]
@@ -1596,8 +1714,7 @@ internal static class NativeMethods
         SafeFileHandle hFile,
         out FILETIME lpCreationTime,
         out FILETIME lpLastAccessTime,
-        out FILETIME lpLastWriteTime
-        );
+        out FILETIME lpLastWriteTime);
 
     [DllImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -1608,9 +1725,17 @@ internal static class NativeMethods
     [SupportedOSPlatform("windows")]
     internal static extern bool SetThreadErrorMode(int newMode, out int oldMode);
 
-#endregion
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    [SupportedOSPlatform("windows")]
+    internal static extern bool CreateSymbolicLink(string symLinkFileName, string targetFileName, SymbolicLink dwFlags);
 
-#region helper methods
+    [DllImport("libc", SetLastError = true)]
+    internal static extern int symlink(string oldpath, string newpath);
+
+    #endregion
+
+    #region helper methods
 
     internal static bool DirectoryExists(string fullPath)
     {
@@ -1656,6 +1781,6 @@ internal static class NativeMethods
         return GetFileAttributesEx(path, 0, ref data);
     }
 
-#endregion
+    #endregion
 
 }

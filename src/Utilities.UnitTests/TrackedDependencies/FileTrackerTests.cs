@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 #if FEATURE_FILE_TRACKER
 
@@ -68,22 +68,23 @@ namespace Microsoft.Build.UnitTests.FileTracking
                     Environment.ExpandEnvironmentVariables("%windir%\\system32;%windir%"));
             }
 
+#if ENABLE_TRACKER_TESTS // https://github.com/dotnet/msbuild/issues/649
             // Call StopTrackingAndCleanup here, just in case one of the unit tests failed before it called it
             // In real code StopTrackingAndCleanup(); would always be in a finally {} block.
             FileTracker.StopTrackingAndCleanup();
             FileTrackerTestHelper.CleanTlogs();
             FileTracker.SetThreadCount(1);
+#endif
         }
 
         public void Dispose()
         {
-            // Reset PATH to its original value. 
+            // Reset PATH to its original value.
             if (s_oldPath != null)
             {
                 Environment.SetEnvironmentVariable("PATH", s_oldPath);
                 s_oldPath = null;
             }
-
             FileTrackerTestHelper.CleanTlogs();
         }
 
@@ -122,8 +123,8 @@ namespace Microsoft.Build.UnitTests.FileTracking
                     Directory.Delete(testDirectory, true);
                 }
 
-                // create an empty directory and copy Tracker.exe -- BUT NOT TrackerUI.dll -- to 
-                // that directory. 
+                // create an empty directory and copy Tracker.exe -- BUT NOT TrackerUI.dll -- to
+                // that directory.
                 Directory.CreateDirectory(testDirectory);
                 File.Copy(s_defaultTrackerPath, testTrackerPath);
 
@@ -131,14 +132,14 @@ namespace Microsoft.Build.UnitTests.FileTracking
 
                 Assert.Equal(9, exit);
                 // It's OK to look for the English message since that's all we're capable of printing when we can't find
-                // our resource dll. 
+                // our resource dll.
                 Assert.Contains("FileTracker : ERROR : Could not load UI satellite dll 'TrackerUI.dll'", log);
             }
             finally
             {
-                // Doesn't delete the directory itself, but deletes its contents.  If you try to delete the directory, 
-                // even after calling this method, it sometimes throws IO exceptions due to not recognizing that the 
-                // contents have been deleted yet. 
+                // Doesn't delete the directory itself, but deletes its contents.  If you try to delete the directory,
+                // even after calling this method, it sometimes throws IO exceptions due to not recognizing that the
+                // contents have been deleted yet.
                 ObjectModelHelpers.DeleteDirectory(testDirectory);
             }
         }
@@ -302,11 +303,11 @@ namespace ConsoleApplication4
         static void Main(string[] args)
         {
             File.GetAttributes(Directory.GetCurrentDirectory());
-            GetFileAttributes(Directory.GetCurrentDirectory()); 
+            GetFileAttributes(Directory.GetCurrentDirectory());
         }
 
         [DllImport(""Kernel32.dll"", SetLastError = true, CharSet = CharSet.Unicode)]
-        private extern static uint GetFileAttributes(string FileName); 
+        private extern static uint GetFileAttributes(string FileName);
     }
 }";
 
@@ -314,10 +315,10 @@ namespace ConsoleApplication4
 
             try
             {
-                codeFile = FileUtilities.GetTemporaryFile();
+                codeFile = FileUtilities.GetTemporaryFileName();
                 File.WriteAllText(codeFile, codeContent);
                 Csc csc = new Csc();
-                csc.BuildEngine = new MockEngine();
+                csc.BuildEngine = new MockEngine3();
                 csc.Sources = new ITaskItem[] { new TaskItem(codeFile) };
                 csc.OutputAssembly = new TaskItem(outputFile);
                 csc.Execute();
@@ -343,7 +344,7 @@ namespace ConsoleApplication4
                 Console.WriteLine("");
                 Assert.Equal(0, exit);
 
-                // With '/a', should *not* track GetFileAttributes on directories, even though we do so on files. 
+                // With '/a', should *not* track GetFileAttributes on directories, even though we do so on files.
                 FileTrackerTestHelper.AssertDidntFindStringInTLog("GetFileAttributesExW:" + FileUtilities.EnsureTrailingSlash(Directory.GetCurrentDirectory()).ToUpperInvariant(), "directoryattributes.read.1.tlog");
                 FileTrackerTestHelper.AssertDidntFindStringInTLog("GetFileAttributesW:" + FileUtilities.EnsureTrailingSlash(Directory.GetCurrentDirectory()).ToUpperInvariant(), "directoryattributes.read.1.tlog");
 
@@ -381,7 +382,7 @@ namespace ConsoleApplication4
                 Console.WriteLine("");
                 Assert.Equal(0, exit);
 
-                // With '/a', should *not* track GetFileAttributes on directories, even though we do so on files. 
+                // With '/a', should *not* track GetFileAttributes on directories, even though we do so on files.
                 FileTrackerTestHelper.AssertDidntFindStringInTLog(FileUtilities.EnsureTrailingSlash(Directory.GetCurrentDirectory()).ToUpperInvariant(), "directoryattributes.read.1.tlog");
 
                 File.Delete("directoryattributes.read.1.tlog");
@@ -418,11 +419,11 @@ namespace ConsoleApplication4
             try
             {
                 string inputPath = Path.GetFullPath("test.in");
-                codeFile = FileUtilities.GetTemporaryFile();
+                codeFile = FileUtilities.GetTemporaryFileName();
                 string codeContent = @"using System.IO; class X { static void Main() { File.ReadAllText(@""" + inputPath + @"""); File.ReadAllText(@""" + inputPath + @"""); }}";
                 File.WriteAllText(codeFile, codeContent);
                 Csc csc = new Csc();
-                csc.BuildEngine = new MockEngine();
+                csc.BuildEngine = new MockEngine3();
                 csc.Sources = new[] { new TaskItem(codeFile) };
                 csc.OutputAssembly = new TaskItem(outputFile);
                 csc.Execute();
@@ -469,12 +470,12 @@ namespace ConsoleApplication4
                 writeFile = Path.Combine(testDirectory, "test.out");
                 string codeFile = Path.Combine(testDirectory, "code.cs");
                 string codeContent = @"
-using System.IO; 
+using System.IO;
 using System.Runtime.InteropServices;
-class X 
-{ 
-    static void Main() 
-    { 
+class X
+{
+    static void Main()
+    {
         FileStream f = File.Open(@""" + writeFile + @""", FileMode.CreateNew, FileAccess.ReadWrite, FileShare.ReadWrite);
         f.WriteByte(8);
         f.Close();
@@ -483,7 +484,7 @@ class X
 
                 File.WriteAllText(codeFile, codeContent);
                 Csc csc = new Csc();
-                csc.BuildEngine = new MockEngine();
+                csc.BuildEngine = new MockEngine3();
                 csc.Sources = new[] { new TaskItem(codeFile) };
                 csc.OutputAssembly = new TaskItem(outputFile);
                 bool success = csc.Execute();
@@ -500,9 +501,9 @@ class X
             }
             finally
             {
-                // Doesn't delete the directory itself, but deletes its contents.  If you try to delete the directory, 
-                // even after calling this method, it sometimes throws IO exceptions due to not recognizing that the 
-                // contents have been deleted yet. 
+                // Doesn't delete the directory itself, but deletes its contents.  If you try to delete the directory,
+                // even after calling this method, it sometimes throws IO exceptions due to not recognizing that the
+                // contents have been deleted yet.
                 ObjectModelHelpers.DeleteDirectory(testDirectory);
             }
 
@@ -837,11 +838,9 @@ class X
             FileTrackerTestHelper.AssertFoundStringInTLog(Path.GetFullPath("test.in").ToUpperInvariant(), tlogFiles[0]);
         }
 
-        [Fact(Skip = "FileTracker tests require VS2015 Update 3 or a packaged version of Tracker.exe https://github.com/dotnet/msbuild/issues/649")]
+        [Fact]
         public void FileTrackerFileIsUnderPath()
         {
-            Console.WriteLine("Test: FileTrackerFileIsUnderPath");
-
             // YES: Both refer to something under baz, so yes this is on the path
             Assert.True(FileTracker.FileIsUnderPath(@"c:\foo\bar\baz\", @"c:\foo\bar\baz\"));
 
@@ -883,11 +882,9 @@ class X
             Assert.False(FileTracker.FileIsUnderPath(@"c:\foo\rumble.cpp", @"c:\foo\rumble\"));
         }
 
-        [Fact(Skip = "FileTracker tests require VS2015 Update 3 or a packaged version of Tracker.exe https://github.com/dotnet/msbuild/issues/649")]
+        [Fact]
         public void FileTrackerFileIsExcludedFromDependencies()
         {
-            Console.WriteLine("Test: FileTrackerFileIsExcludedFromDependencies");
-
             string applicationDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             string localApplicationDataPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             string localLowApplicationDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "AppData\\LocalLow");
@@ -903,7 +900,7 @@ class X
                                       ? tempPath
                                       : FileUtilities.EnsureTrailingSlash(
                                           NativeMethodsShared.GetLongFilePath(tempPath).ToUpperInvariant());
-            
+
             // We don't want to be including these as dependencies or outputs:
             // 1. Files under %USERPROFILE%\Application Data in XP and %USERPROFILE%\AppData\Roaming in Vista and later.
             // 2. Files under %USERPROFILE%\Local Settings\Application Data in XP and %USERPROFILE%\AppData\Local in Vista and later.
@@ -1024,8 +1021,7 @@ class X
 
                 // This should throw a COMException, since we have cleaned up
                 FileTracker.WriteContextTLogs(Path.GetFullPath("."), tlogRootName);
-            }
-           );
+            });
         }
         [Fact(Skip = "FileTracker tests require VS2015 Update 3 or a packaged version of Tracker.exe https://github.com/dotnet/msbuild/issues/649")]
         public void InProcTrackingTestNotStop()
@@ -1359,8 +1355,7 @@ class X
                     File.Delete(tlogWriteFile);
                     File.Delete(tlogWriteFile2);
                 }
-            }
-           );
+            });
         }
 
         [Fact(Skip = "Test fails in xunit because tracker includes the PID in the log file.")]
@@ -1386,7 +1381,7 @@ class X
             }
             Console.WriteLine("");
             Assert.Equal(0, exit);
-            // This line is the problem.  It seems to have been reliable in MSTest 
+            // This line is the problem.  It seems to have been reliable in MSTest
             // but in xunit when run with other tests (NOT by itself), filetracker
             // puts a PID in the path, so this tries to open the wrong file and throws.
             FileTrackerTestHelper.AssertFoundStringInTLog(Path.GetFullPath("test.in").ToUpperInvariant(), "InProcTrackingStartProcessFindStrIn-findstr.read.1.tlog");
@@ -2244,7 +2239,7 @@ class X
 
                 Directory.CreateDirectory(testDir);
 
-                // File to run findstr against. 
+                // File to run findstr against.
                 string tempFilePath = Path.Combine(testDir, "bar.txt");
                 File.WriteAllText(tempFilePath, "");
 
@@ -2277,7 +2272,7 @@ namespace ConsoleApplication4
                 string codeFile = Path.Combine(testDir, "Program.cs");
                 File.WriteAllText(codeFile, codeContent);
                 Csc csc = new Csc();
-                csc.BuildEngine = new MockEngine();
+                csc.BuildEngine = new MockEngine3();
                 csc.Sources = new ITaskItem[] { new TaskItem(codeFile) };
                 csc.OutputAssembly = new TaskItem(outputFile);
                 csc.Platform = "x86";
@@ -2435,7 +2430,7 @@ namespace ConsoleApplication4
 
                 // make sure the disk write gets time for NTFS to recognize its existence.  Estimate time needed to sleep based
                 // roughly on the number of tlogs that we're looking for (presumably roughly proportional to the number of tlogs
-                // being written. 
+                // being written.
                 Thread.Sleep(Math.Max(200, 250 * tlogCount));
 
                 // Item1: The pattern the tlog name should follow

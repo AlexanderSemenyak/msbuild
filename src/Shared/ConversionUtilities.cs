@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Globalization;
@@ -12,12 +12,12 @@ namespace Microsoft.Build.Shared
 {
     /// <summary>
     /// This class contains only static methods, which are useful throughout many
-    /// of the MSBuild classes and don't really belong in any specific class.   
+    /// of the MSBuild classes and don't really belong in any specific class.
     /// </summary>
     internal static class ConversionUtilities
     {
         /// <summary>
-        /// Converts a string to a bool.  We consider "true/false", "on/off", and 
+        /// Converts a string to a bool.  We consider "true/false", "on/off", and
         /// "yes/no" to be valid boolean representations in the XML.
         /// </summary>
         /// <param name="parameterValue">The string to convert.</param>
@@ -108,7 +108,7 @@ namespace Microsoft.Build.Shared
         /// Returns true if the string represents a valid MSBuild boolean false value,
         /// such as "!on" "off" "no" "!true"
         /// </summary>
-        private static bool ValidBooleanFalse(string parameterValue)
+        internal static bool ValidBooleanFalse(string parameterValue)
         {
             return String.Equals(parameterValue, "false", StringComparison.OrdinalIgnoreCase) ||
                    String.Equals(parameterValue, "off", StringComparison.OrdinalIgnoreCase) ||

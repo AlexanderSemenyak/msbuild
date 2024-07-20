@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Collections;
@@ -17,14 +17,12 @@ namespace Microsoft.Build.UnitTests
     public class CustomEventArgSerialization_Tests : IDisposable
     {
         // Generic build class to test custom serialization of abstract class BuildEventArgs
-        internal class GenericBuildEventArg : BuildEventArgs
+        internal sealed class GenericBuildEventArg : BuildEventArgs
         {
-            internal GenericBuildEventArg
-        (
+            internal GenericBuildEventArg(
             string message,
             string helpKeyword,
-            string senderName
-        )
+            string senderName)
                 : base(message, helpKeyword, senderName)
             {
                 // Do Nothing
@@ -194,7 +192,7 @@ namespace Microsoft.Build.UnitTests
         }
 
         /// <summary>
-        /// Compare two BuildEventArgs 
+        /// Compare two BuildEventArgs
         /// </summary>
         private static void VerifyBuildErrorEventArgs(BuildErrorEventArgs genericEvent, BuildErrorEventArgs newGenericEvent)
         {
@@ -616,7 +614,7 @@ namespace Microsoft.Build.UnitTests
         }
 
         /// <summary>
-        /// Compare the BuildProperties in propertyList with the Name Value pairs in the entryList. 
+        /// Compare the BuildProperties in propertyList with the Name Value pairs in the entryList.
         /// We need to make sure that each of the BuildProperties passed into the serializer come out correctly
         /// </summary>
         /// <param name="entryList">List of DictionaryEntries which were deserialized</param>
@@ -703,7 +701,7 @@ namespace Microsoft.Build.UnitTests
         }
 
         /// <summary>
-        /// Compare two project started events 
+        /// Compare two project started events
         /// </summary>
         private static void VerifyProjectStartedEvent(ProjectStartedEventArgs genericEvent, ProjectStartedEventArgs newGenericEvent)
         {

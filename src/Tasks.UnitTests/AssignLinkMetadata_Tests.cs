@@ -1,15 +1,15 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using Microsoft.Build.Evaluation;
+using Microsoft.Build.Execution;
 using Microsoft.Build.Framework;
+using Microsoft.Build.Shared;
 using Microsoft.Build.Tasks;
 using Microsoft.Build.Utilities;
-using Microsoft.Build.Evaluation;
-using System.Collections.Generic;
-using Microsoft.Build.Execution;
-using Microsoft.Build.Shared;
 using Xunit;
 
 #nullable disable
@@ -37,7 +37,7 @@ namespace Microsoft.Build.UnitTests
         }
 
         /// <summary>
-        /// AssignLinkMetadata should behave nicely when there is an item with an 
+        /// AssignLinkMetadata should behave nicely when there is an item with an
         /// itemspec that contains invalid path characters.
         /// </summary>
         [Fact]
@@ -49,7 +49,7 @@ namespace Microsoft.Build.UnitTests
             AssignLinkMetadata t = new AssignLinkMetadata
             {
                 BuildEngine = new MockEngine(),
-                Items = new ITaskItem[] {new TaskItem(item)}
+                Items = new ITaskItem[] { new TaskItem(item) }
             };
             bool success = t.Execute();
 
@@ -61,7 +61,6 @@ namespace Microsoft.Build.UnitTests
         /// Test basic function of the AssignLinkMetadata task
         /// </summary>
         [Fact]
-        [Trait("Category", "mono-osx-failing")]
         public void Basic()
         {
             ITaskItem item = GetParentedTaskItem(_defaultItemSpec);
@@ -69,7 +68,7 @@ namespace Microsoft.Build.UnitTests
             AssignLinkMetadata t = new AssignLinkMetadata
             {
                 BuildEngine = new MockEngine(),
-                Items = new ITaskItem[] {new TaskItem(item)}
+                Items = new ITaskItem[] { new TaskItem(item) }
             };
             bool success = t.Execute();
 
@@ -77,18 +76,17 @@ namespace Microsoft.Build.UnitTests
             Assert.Single(t.OutputItems);
             Assert.Equal(item.ItemSpec, t.OutputItems[0].ItemSpec);
 
-            // Link metadata should have been added by the task, and OriginalItemSpec was added by the copy 
+            // Link metadata should have been added by the task, and OriginalItemSpec was added by the copy
             Assert.Equal(item.MetadataCount + 2, t.OutputItems[0].MetadataCount);
             Assert.Equal(Path.Combine("SubFolder", "a.cs"), t.OutputItems[0].GetMetadata("Link"));
         }
 
         /// <summary>
-        /// AssignLinkMetadata should behave nicely when there is an item with an 
-        /// itemspec that contains invalid path characters, and still successfully 
+        /// AssignLinkMetadata should behave nicely when there is an item with an
+        /// itemspec that contains invalid path characters, and still successfully
         /// output any items that aren't problematic.
         /// </summary>
         [Fact]
-        [Trait("Category", "mono-osx-failing")]
         public void InvalidItemPathWithOtherValidItem()
         {
             ITaskItem item1 = GetParentedTaskItem(itemSpec: "|||");
@@ -97,7 +95,7 @@ namespace Microsoft.Build.UnitTests
             AssignLinkMetadata t = new AssignLinkMetadata
             {
                 BuildEngine = new MockEngine(),
-                Items = new ITaskItem[] {new TaskItem(item1), new TaskItem(item2)}
+                Items = new ITaskItem[] { new TaskItem(item1), new TaskItem(item2) }
             };
             bool success = t.Execute();
 
@@ -105,7 +103,7 @@ namespace Microsoft.Build.UnitTests
             Assert.Single(t.OutputItems);
             Assert.Equal(item2.ItemSpec, t.OutputItems[0].ItemSpec);
 
-            // Link metadata should have been added by the task, and OriginalItemSpec was added by the copy 
+            // Link metadata should have been added by the task, and OriginalItemSpec was added by the copy
             Assert.Equal(item2.MetadataCount + 2, t.OutputItems[0].MetadataCount);
             Assert.Equal(Path.Combine("SubFolder", "a.cs"), t.OutputItems[0].GetMetadata("Link"));
         }
@@ -121,7 +119,7 @@ namespace Microsoft.Build.UnitTests
             AssignLinkMetadata t = new AssignLinkMetadata
             {
                 BuildEngine = new MockEngine(),
-                Items = new ITaskItem[] {new TaskItem(item)}
+                Items = new ITaskItem[] { new TaskItem(item) }
             };
             bool success = t.Execute();
 
@@ -130,7 +128,7 @@ namespace Microsoft.Build.UnitTests
         }
 
         /// <summary>
-        /// AssignLinkMetadata should not set Link if the item is outside the 
+        /// AssignLinkMetadata should not set Link if the item is outside the
         /// defining project's cone
         /// </summary>
         [Fact]
@@ -143,7 +141,7 @@ namespace Microsoft.Build.UnitTests
             AssignLinkMetadata t = new AssignLinkMetadata
             {
                 BuildEngine = new MockEngine(),
-                Items = new ITaskItem[] {new TaskItem(item)}
+                Items = new ITaskItem[] { new TaskItem(item) }
             };
             bool success = t.Execute();
 
@@ -163,7 +161,7 @@ namespace Microsoft.Build.UnitTests
             AssignLinkMetadata t = new AssignLinkMetadata
             {
                 BuildEngine = new MockEngine(),
-                Items = new ITaskItem[] {item}
+                Items = new ITaskItem[] { item }
             };
             bool success = t.Execute();
 
@@ -176,7 +174,8 @@ namespace Microsoft.Build.UnitTests
         /// </summary>
         private ITaskItem GetParentedTaskItem(string itemSpec, string linkMetadata = null)
         {
-            Project p = new Project(new ProjectCollection())
+            using var collection = new ProjectCollection();
+            Project p = new Project(collection)
             {
                 FullPath = Path.Combine(Path.GetTempPath(), "a.proj")
             };

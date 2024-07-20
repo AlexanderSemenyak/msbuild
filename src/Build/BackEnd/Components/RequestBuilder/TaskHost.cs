@@ -1,27 +1,29 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 #if FEATURE_APPDOMAIN
-using System.Runtime.Remoting.Lifetime;
 using System.Runtime.Remoting;
+using System.Runtime.Remoting.Lifetime;
 #endif
-using System.Threading;
-using Microsoft.Build.Framework;
-using Microsoft.Build.Shared;
-using Microsoft.Build.Execution;
 using System.Diagnostics;
+using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Build.BackEnd.Components.Caching;
 using Microsoft.Build.Collections;
+using Microsoft.Build.Eventing;
+using Microsoft.Build.Execution;
+using Microsoft.Build.FileAccesses;
+using Microsoft.Build.Framework;
+using Microsoft.Build.Experimental.FileAccess;
+using Microsoft.Build.Shared;
 using ElementLocation = Microsoft.Build.Construction.ElementLocation;
 using TaskItem = Microsoft.Build.Execution.ProjectItemInstance.TaskItem;
 using TaskLoggingContext = Microsoft.Build.BackEnd.Logging.TaskLoggingContext;
-using System.Threading.Tasks;
-using Microsoft.Build.BackEnd.Components.Caching;
-using System.Reflection;
-using Microsoft.Build.Eventing;
 
 #nullable disable
 
@@ -37,11 +39,6 @@ namespace Microsoft.Build.BackEnd
 #endif
         IBuildEngine10
     {
-        /// <summary>
-        /// True if the "secret" environment variable MSBUILDNOINPROCNODE is set.
-        /// </summary>
-        private static bool s_disableInprocNodeByEnvironmentVariable = Environment.GetEnvironmentVariable("MSBUILDNOINPROCNODE") == "1";
-
         /// <summary>
         /// Help diagnose tasks that log after they return.
         /// </summary>
@@ -128,9 +125,7 @@ namespace Microsoft.Build.BackEnd
             _continueOnError = false;
             _activeProxy = true;
             _callbackMonitor = new object();
-            _disableInprocNode = ChangeWaves.AreFeaturesEnabled(ChangeWaves.Wave17_0)
-                ? s_disableInprocNodeByEnvironmentVariable || host.BuildParameters.DisableInProcNode
-                : s_disableInprocNodeByEnvironmentVariable;
+            _disableInprocNode = Traits.Instance.InProcNodeDisabled || host.BuildParameters.DisableInProcNode;
             EngineServices = new EngineServicesImpl(this);
         }
 
@@ -265,16 +260,14 @@ namespace Microsoft.Build.BackEnd
         public bool BuildProjectFile(string projectFileName, string[] targetNames, System.Collections.IDictionary globalProperties, System.Collections.IDictionary targetOutputs, string toolsVersion)
         {
             VerifyActiveProxy();
-            return BuildProjectFilesInParallel
-            (
+            return BuildProjectFilesInParallel(
                 new string[] { projectFileName },
                 targetNames,
                 new IDictionary[] { globalProperties },
                 new IDictionary[] { targetOutputs },
                 new string[] { toolsVersion },
                 true,
-                false
-            );
+                false);
         }
 
         /// <summary>
@@ -352,6 +345,14 @@ namespace Microsoft.Build.BackEnd
         /// </summary>
         public void Yield()
         {
+#if FEATURE_REPORTFILEACCESSES
+            // If file accesses are being reported we should not yield as file access will be attributed to the wrong project.
+            if (_host.BuildParameters.ReportFileAccesses)
+            {
+                return;
+            }
+#endif
+
             lock (_callbackMonitor)
             {
                 IRequestBuilderCallback builderCallback = _requestEntry.Builder as IRequestBuilderCallback;
@@ -373,6 +374,14 @@ namespace Microsoft.Build.BackEnd
             // to release explicitly granted cores when reacquiring the node may lead to deadlocks.
             ReleaseAllCores();
 
+#if FEATURE_REPORTFILEACCESSES
+            // If file accesses are being reported yielding is a no-op so reacquire should be too.
+            if (_host.BuildParameters.ReportFileAccesses)
+            {
+                return;
+            }
+#endif
+
             lock (_callbackMonitor)
             {
                 IRequestBuilderCallback builderCallback = _requestEntry.Builder as IRequestBuilderCallback;
@@ -386,7 +395,7 @@ namespace Microsoft.Build.BackEnd
             }
         }
 
-        #endregion
+#endregion
 
         #region IBuildEngine Members
 
@@ -418,8 +427,8 @@ namespace Microsoft.Build.BackEnd
                     return;
                 }
 
-                // If we are in building across process we need the events to be serializable. This method will 
-                // check to see if we are building with multiple process and if the event is serializable. It will 
+                // If we are in building across process we need the events to be serializable. This method will
+                // check to see if we are building with multiple process and if the event is serializable. It will
                 // also log a warning if the event is not serializable and drop the logging message.
                 if (IsRunningMultipleNodes && !IsEventSerializable(e))
                 {
@@ -428,12 +437,11 @@ namespace Microsoft.Build.BackEnd
 
                 if (_convertErrorsToWarnings)
                 {
-                    // Convert the error into a warning.  We do this because the whole point of 
+                    // Convert the error into a warning.  We do this because the whole point of
                     // ContinueOnError is that a project author expects that the task might fail,
                     // but wants to ignore the failures.  This implies that we shouldn't be logging
                     // errors either, because you should never have a successful build with errors.
-                    BuildWarningEventArgs warningEvent = new BuildWarningEventArgs
-                            (
+                    BuildWarningEventArgs warningEvent = new BuildWarningEventArgs(
                                 e.Subcategory,
                                 e.Code,
                                 e.File,
@@ -443,8 +451,7 @@ namespace Microsoft.Build.BackEnd
                                 e.EndColumnNumber,
                                 e.Message,
                                 e.HelpKeyword,
-                                e.SenderName
-                            );
+                                e.SenderName);
 
                     warningEvent.BuildEventContext = _taskLoggingContext.BuildEventContext;
                     _taskLoggingContext.LoggingService.LogBuildEvent(warningEvent);
@@ -457,8 +464,8 @@ namespace Microsoft.Build.BackEnd
                     e.BuildEventContext = _taskLoggingContext.BuildEventContext;
                     _taskLoggingContext.LoggingService.LogBuildEvent(e);
                 }
-                
-                 _taskLoggingContext.HasLoggedErrors = true;
+
+                _taskLoggingContext.HasLoggedErrors = true;
             }
         }
 
@@ -490,8 +497,8 @@ namespace Microsoft.Build.BackEnd
                     return;
                 }
 
-                // If we are in building across process we need the events to be serializable. This method will 
-                // check to see if we are building with multiple process and if the event is serializable. It will 
+                // If we are in building across process we need the events to be serializable. This method will
+                // check to see if we are building with multiple process and if the event is serializable. It will
                 // also log a warning if the event is not serializable and drop the logging message.
                 if (IsRunningMultipleNodes && !IsEventSerializable(e))
                 {
@@ -531,8 +538,8 @@ namespace Microsoft.Build.BackEnd
                     return;
                 }
 
-                // If we are in building across process we need the events to be serializable. This method will 
-                // check to see if we are building with multiple process and if the event is serializable. It will 
+                // If we are in building across process we need the events to be serializable. This method will
+                // check to see if we are building with multiple process and if the event is serializable. It will
                 // also log a warning if the event is not serializable and drop the logging message.
                 if (IsRunningMultipleNodes && !IsEventSerializable(e))
                 {
@@ -572,8 +579,8 @@ namespace Microsoft.Build.BackEnd
                     return;
                 }
 
-                // If we are in building across process we need the events to be serializable. This method will 
-                // check to see if we are building with multiple process and if the event is serializable. It will 
+                // If we are in building across process we need the events to be serializable. This method will
+                // check to see if we are building with multiple process and if the event is serializable. It will
                 // also log a warning if the event is not serializable and drop the logging message.
                 if (IsRunningMultipleNodes && !IsEventSerializable(e))
                 {
@@ -931,11 +938,26 @@ namespace Microsoft.Build.BackEnd
 
             /// <inheritdoc/>
             public override bool IsTaskInputLoggingEnabled => _taskHost._host.BuildParameters.LogTaskInputs;
+
+#if FEATURE_REPORTFILEACCESSES
+            /// <summary>
+            /// Reports a file access from a task.
+            /// </summary>
+            /// <param name="fileAccessData">The file access to report.</param>
+            public void ReportFileAccess(FileAccessData fileAccessData)
+            {
+                IBuildComponentHost buildComponentHost = _taskHost._host;
+                if (buildComponentHost.BuildParameters.ReportFileAccesses)
+                {
+                    ((IFileAccessManager)buildComponentHost.GetComponent(BuildComponentType.FileAccessManager)).ReportFileAccess(fileAccessData, buildComponentHost.BuildParameters.NodeId);
+                }
+            }
+#endif
         }
 
         public EngineServices EngineServices { get; }
 
-        #endregion
+#endregion
 
         /// <summary>
         /// Called by the internal MSBuild task.
@@ -1001,7 +1023,7 @@ namespace Microsoft.Build.BackEnd
                 ILease lease = (ILease)base.InitializeLifetimeService();
 
                 // Set how long a lease should be initially. Once a lease expires
-                // the remote object will be disconnected and it will be marked as being availiable 
+                // the remote object will be disconnected and it will be marked as being availiable
                 // for garbage collection
                 int initialLeaseTime = 1;
 
@@ -1023,7 +1045,7 @@ namespace Microsoft.Build.BackEnd
                 // increase the lease time allowing the object to stay in memory
                 _sponsor = new ClientSponsor();
 
-                // When a new lease is requested lets make it last 1 minutes longer. 
+                // When a new lease is requested lets make it last 1 minutes longer.
                 int leaseExtensionTime = 1;
 
                 string leaseExtensionTimeFromEnvironment = Environment.GetEnvironmentVariable("MSBUILDENGINEPROXYLEASEEXTENSIONTIME");
@@ -1060,7 +1082,7 @@ namespace Microsoft.Build.BackEnd
                 ReleaseAllCores();
 
                 // Since the task has a pointer to this class it may store it in a static field. Null out
-                // internal data so the leak of this object doesn't lead to a major memory leak.            
+                // internal data so the leak of this object doesn't lead to a major memory leak.
                 _host = null;
                 _requestEntry = null;
 
@@ -1090,7 +1112,11 @@ namespace Microsoft.Build.BackEnd
         /// </summary>
         internal bool IsEventSerializable(BuildEventArgs e)
         {
-            if (!e.GetType().GetTypeInfo().IsSerializable)
+#pragma warning disable SYSLIB0050
+            // Types which are not serializable and are not IExtendedBuildEventArgs as
+            // those always implement custom serialization by WriteToStream and CreateFromStream.
+            if (!e.GetType().GetTypeInfo().IsSerializable && e is not IExtendedBuildEventArgs)
+#pragma warning restore SYSLIB0050
             {
                 _taskLoggingContext.LogWarning(null, new BuildEventFileInfo(string.Empty), "ExpectedEventToBeSerializable", e.GetType().Name);
                 return false;
@@ -1148,7 +1174,7 @@ namespace Microsoft.Build.BackEnd
                 }
                 else
                 {
-                    // UNDONE: (Refactor) Investigate making this a ReadOnly collection of some sort.  
+                    // UNDONE: (Refactor) Investigate making this a ReadOnly collection of some sort.
                     PropertyDictionary<ProjectPropertyInstance>[] propertyDictionaries = new PropertyDictionary<ProjectPropertyInstance>[projectFileNames.Length];
 
                     for (int i = 0; i < projectFileNames.Length; i++)

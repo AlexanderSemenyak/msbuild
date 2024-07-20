@@ -1,5 +1,9 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
+// THE ASSEMBLY BUILT FROM THIS SOURCE FILE HAS BEEN DEPRECATED FOR YEARS. IT IS BUILT ONLY TO PROVIDE
+// BACKWARD COMPATIBILITY FOR API USERS WHO HAVE NOT YET MOVED TO UPDATED APIS. PLEASE DO NOT SEND PULL
+// REQUESTS THAT CHANGE THIS FILE WITHOUT FIRST CHECKING WITH THE MAINTAINERS THAT THE FIX IS REQUIRED.
 
 using System;
 using System.Xml;
@@ -23,19 +27,19 @@ namespace Microsoft.Build.BuildEngine
         // by the author.
         NormalProperty,
 
-        // An "imported" property is like a "normal" property, except that 
+        // An "imported" property is like a "normal" property, except that
         // instead of coming directly from the project file, its definition
         // is in one of the imported files (e.g., "CSharp.buildrules").
         ImportedProperty,
 
         // A "global" property is the kind that is set outside of the project file.
         // Once such a property is set, it cannot be overridden by the project file.
-        // For example, when the user sets a property via a switch on the XMake 
+        // For example, when the user sets a property via a switch on the XMake
         // command-line, this is a global property.  In the IDE case, "Configuration"
         // would be a global property set by the IDE.
         GlobalProperty,
 
-        // A "reserved" property behaves much like a read-only property, except 
+        // A "reserved" property behaves much like a read-only property, except
         // that the names are not arbitrary; they are chosen by us.  Also,
         // no user can ever set or override these properties.  For example,
         // "XMakeProjectName" would be a property that is only settable by
@@ -52,11 +56,26 @@ namespace Microsoft.Build.BuildEngine
     }
 
     /// <summary>
+    /// This class (and the whole namespace) is deprecated. Please use the classes in these namespaces instead: 
+    /// <see href="/dotnet/api/microsoft.build.construction">Microsoft.Build.Construction</see>
+    /// <see href="/dotnet/api/microsoft.build.evaluation">Microsoft.Build.Evaluation</see>
+    /// <see href="/dotnet/api/microsoft.build.execution">Microsoft.Build.Execution</see>
+    /// 
     /// This class holds an MSBuild property.  This may be a property that is
     /// represented in the MSBuild project file by an XML element, or it
     /// may not be represented in any real XML file (e.g., global properties,
     /// environment properties, etc.)
     /// </summary>
+    /// <remarks>
+    /// <format type="text/markdown"><![CDATA[
+    /// ## Remarks
+    /// > [!WARNING]
+    /// > This class (and the whole namespace) is deprecated. Please use the classes in these namespaces instead: 
+    /// > <xref:Microsoft.Build.Construction>
+    /// > <xref:Microsoft.Build.Evaluation>
+    /// > <xref:Microsoft.Build.Execution>
+    /// ]]></format>
+    /// </remarks>
     /// <owner>rgoel</owner>
     [DebuggerDisplay("BuildProperty (Name = { Name }, Value = { Value }, FinalValue = { FinalValue }, Condition = { Condition })")]
     public class BuildProperty
@@ -84,15 +103,15 @@ namespace Microsoft.Build.BuildEngine
         // this node may look like this:
         //      <WarningLevel Condition="...">4</WarningLevel>
         //
-        // If this property is not represented by an actual XML element in the 
+        // If this property is not represented by an actual XML element in the
         // project file, it's okay if this is null.
         private XmlElement propertyElement = null;
 
-        // This is the specific XML attribute in the above XML element which 
+        // This is the specific XML attribute in the above XML element which
         // contains the "Condition".
         private XmlAttribute conditionAttribute = null;
 
-        // If this property is persisted in the project file, then we need to 
+        // If this property is persisted in the project file, then we need to
         // store a reference to the parent <PropertyGroup>.
         private BuildPropertyGroup parentPersistedPropertyGroup = null;
 
@@ -116,7 +135,7 @@ namespace Microsoft.Build.BuildEngine
             else
             {
                 writer.Write((byte)0);
-                  writer.Write(finalValueEscaped);
+                writer.Write(finalValueEscaped);
             }
             writer.Write((Int32)type);
         }
@@ -181,8 +200,8 @@ namespace Microsoft.Build.BuildEngine
         /// <owner>rgoel</owner>
         internal BuildProperty
         (
-            XmlElement      propertyElement,
-            PropertyType    propertyType
+            XmlElement propertyElement,
+            PropertyType propertyType
         ) :
             this(propertyElement,
                  propertyElement != null ? Utilities.GetXmlNodeInnerContents(propertyElement) : null,
@@ -328,12 +347,27 @@ namespace Microsoft.Build.BuildEngine
         }
 
         /// <summary>
+        /// This method (and the whole namespace) is deprecated. Please use the classes in these namespaces instead: 
+        /// <see href="/dotnet/api/microsoft.build.construction">Microsoft.Build.Construction</see>
+        /// <see href="/dotnet/api/microsoft.build.evaluation">Microsoft.Build.Evaluation</see>
+        /// <see href="/dotnet/api/microsoft.build.execution">Microsoft.Build.Execution</see>
+        /// 
         /// Constructor, which initializes the property from just the property
         /// name and value, creating it as a "normal" property.  This ends up
         /// creating a new XML element for the property under a dummy XML document.
         /// </summary>
         /// <param name="propertyName"></param>
         /// <param name="propertyValue"></param>
+        /// <remarks>
+        /// <format type="text/markdown"><![CDATA[
+        /// ## Remarks
+        /// > [!WARNING]
+        /// > This method (and the whole namespace) is deprecated. Please use the classes in these namespaces instead: 
+        /// > <xref:Microsoft.Build.Construction>
+        /// > <xref:Microsoft.Build.Evaluation>
+        /// > <xref:Microsoft.Build.Execution>
+        /// ]]></format>
+        /// </remarks>
         /// <owner>rgoel</owner>
         public BuildProperty
         (
@@ -349,6 +383,11 @@ namespace Microsoft.Build.BuildEngine
         #region Properties
 
         /// <summary>
+        /// This method (and the whole namespace) is deprecated. Please use the classes in these namespaces instead: 
+        /// <see href="/dotnet/api/microsoft.build.construction">Microsoft.Build.Construction</see>
+        /// <see href="/dotnet/api/microsoft.build.evaluation">Microsoft.Build.Evaluation</see>
+        /// <see href="/dotnet/api/microsoft.build.execution">Microsoft.Build.Execution</see>
+        /// 
         /// Accessor for the property name.  This is read-only, so one cannot
         /// change the property name once it's set ... your only option is
         /// to create a new BuildProperty object.  The reason is that BuildProperty objects
@@ -356,6 +395,16 @@ namespace Microsoft.Build.BuildEngine
         /// on the property name.  Modifying the property name of an existing
         /// BuildProperty object would make the hash table incorrect.
         /// </summary>
+        /// <remarks>
+        /// <format type="text/markdown"><![CDATA[
+        /// ## Remarks
+        /// > [!WARNING]
+        /// > This method (and the whole namespace) is deprecated. Please use the classes in these namespaces instead: 
+        /// > <xref:Microsoft.Build.Construction>
+        /// > <xref:Microsoft.Build.Evaluation>
+        /// > <xref:Microsoft.Build.Execution>
+        /// ]]></format>
+        /// </remarks>
         /// <owner>RGoel</owner>
         public string Name
         {
@@ -379,9 +428,24 @@ namespace Microsoft.Build.BuildEngine
         }
 
         /// <summary>
+        /// This method (and the whole namespace) is deprecated. Please use the classes in these namespaces instead: 
+        /// <see href="/dotnet/api/microsoft.build.construction">Microsoft.Build.Construction</see>
+        /// <see href="/dotnet/api/microsoft.build.evaluation">Microsoft.Build.Evaluation</see>
+        /// <see href="/dotnet/api/microsoft.build.execution">Microsoft.Build.Execution</see>
+        /// 
         /// Accessor for the property value.  Normal properties can be modified;
         /// other property types cannot.
         /// </summary>
+        /// <remarks>
+        /// <format type="text/markdown"><![CDATA[
+        /// ## Remarks
+        /// > [!WARNING]
+        /// > This method (and the whole namespace) is deprecated. Please use the classes in these namespaces instead: 
+        /// > <xref:Microsoft.Build.Construction>
+        /// > <xref:Microsoft.Build.Evaluation>
+        /// > <xref:Microsoft.Build.Execution>
+        /// ]]></format>
+        /// </remarks>
         /// <owner>RGoel</owner>
         public string Value
         {
@@ -425,7 +489,9 @@ namespace Microsoft.Build.BuildEngine
             // NO OP if the value we set is the same we already have
             // This will prevent making the project dirty
             if (value == this.propertyValue)
+            {
                 return;
+            }
 
             // NOTE: allow output properties to be modified -- they're just like normal properties (except for their
             // precedence), and it doesn't really matter if they are modified, since they are transient (virtual)
@@ -464,8 +530,23 @@ namespace Microsoft.Build.BuildEngine
         }
 
         /// <summary>
+        /// This method (and the whole namespace) is deprecated. Please use the classes in these namespaces instead: 
+        /// <see href="/dotnet/api/microsoft.build.construction">Microsoft.Build.Construction</see>
+        /// <see href="/dotnet/api/microsoft.build.evaluation">Microsoft.Build.Evaluation</see>
+        /// <see href="/dotnet/api/microsoft.build.execution">Microsoft.Build.Execution</see>
+        /// 
         /// Returns the unescaped value of the property.
         /// </summary>
+        /// <remarks>
+        /// <format type="text/markdown"><![CDATA[
+        /// ## Remarks
+        /// > [!WARNING]
+        /// > This method (and the whole namespace) is deprecated. Please use the classes in these namespaces instead: 
+        /// > <xref:Microsoft.Build.Construction>
+        /// > <xref:Microsoft.Build.Evaluation>
+        /// > <xref:Microsoft.Build.Execution>
+        /// ]]></format>
+        /// </remarks>
         /// <owner>RGoel</owner>
         public string FinalValue
         {
@@ -497,8 +578,23 @@ namespace Microsoft.Build.BuildEngine
         }
 
         /// <summary>
+        /// This method (and the whole namespace) is deprecated. Please use the classes in these namespaces instead: 
+        /// <see href="/dotnet/api/microsoft.build.construction">Microsoft.Build.Construction</see>
+        /// <see href="/dotnet/api/microsoft.build.evaluation">Microsoft.Build.Evaluation</see>
+        /// <see href="/dotnet/api/microsoft.build.execution">Microsoft.Build.Execution</see>
+        /// 
         /// Did this property originate from an imported project file?
         /// </summary>
+        /// <remarks>
+        /// <format type="text/markdown"><![CDATA[
+        /// ## Remarks
+        /// > [!WARNING]
+        /// > This method (and the whole namespace) is deprecated. Please use the classes in these namespaces instead: 
+        /// > <xref:Microsoft.Build.Construction>
+        /// > <xref:Microsoft.Build.Evaluation>
+        /// > <xref:Microsoft.Build.Execution>
+        /// ]]></format>
+        /// </remarks>
         /// <owner>RGoel</owner>
         public bool IsImported
         {
@@ -509,8 +605,23 @@ namespace Microsoft.Build.BuildEngine
         }
 
         /// <summary>
+        /// This method (and the whole namespace) is deprecated. Please use the classes in these namespaces instead: 
+        /// <see href="/dotnet/api/microsoft.build.construction">Microsoft.Build.Construction</see>
+        /// <see href="/dotnet/api/microsoft.build.evaluation">Microsoft.Build.Evaluation</see>
+        /// <see href="/dotnet/api/microsoft.build.execution">Microsoft.Build.Execution</see>
+        /// 
         /// Accessor for the condition on the property.
         /// </summary>
+        /// <remarks>
+        /// <format type="text/markdown"><![CDATA[
+        /// ## Remarks
+        /// > [!WARNING]
+        /// > This method (and the whole namespace) is deprecated. Please use the classes in these namespaces instead: 
+        /// > <xref:Microsoft.Build.Construction>
+        /// > <xref:Microsoft.Build.Evaluation>
+        /// > <xref:Microsoft.Build.Execution>
+        /// ]]></format>
+        /// </remarks>
         /// <owner>RGoel</owner>
         public string Condition
         {
@@ -577,7 +688,7 @@ namespace Microsoft.Build.BuildEngine
 
             set
             {
-                ErrorUtilities.VerifyThrow( ((value == null) && (this.parentPersistedPropertyGroup != null)) || ((value != null) && (this.parentPersistedPropertyGroup == null)),
+                ErrorUtilities.VerifyThrow(((value == null) && (this.parentPersistedPropertyGroup != null)) || ((value != null) && (this.parentPersistedPropertyGroup == null)),
                     "Either new parent cannot be assigned because we already have a parent, or old parent cannot be removed because none exists.");
 
                 this.parentPersistedPropertyGroup = value;
@@ -620,6 +731,11 @@ namespace Microsoft.Build.BuildEngine
         }
 
         /// <summary>
+        /// This method (and the whole namespace) is deprecated. Please use the classes in these namespaces instead: 
+        /// <see href="/dotnet/api/microsoft.build.construction">Microsoft.Build.Construction</see>
+        /// <see href="/dotnet/api/microsoft.build.evaluation">Microsoft.Build.Evaluation</see>
+        /// <see href="/dotnet/api/microsoft.build.execution">Microsoft.Build.Execution</see>
+        /// 
         /// Creates a shallow or deep clone of this BuildProperty object.
         ///
         /// A shallow clone points at the same XML element as the original, so
@@ -631,6 +747,16 @@ namespace Microsoft.Build.BuildEngine
         /// </summary>
         /// <param name="deepClone"></param>
         /// <returns></returns>
+        /// <remarks>
+        /// <format type="text/markdown"><![CDATA[
+        /// ## Remarks
+        /// > [!WARNING]
+        /// > This method (and the whole namespace) is deprecated. Please use the classes in these namespaces instead: 
+        /// > <xref:Microsoft.Build.Construction>
+        /// > <xref:Microsoft.Build.Evaluation>
+        /// > <xref:Microsoft.Build.Execution>
+        /// ]]></format>
+        /// </remarks>
         /// <owner>rgoel</owner>
         public BuildProperty Clone
         (
@@ -690,27 +816,42 @@ namespace Microsoft.Build.BuildEngine
             BuildProperty compareToProperty
         )
         {
-            // Intentionally do not compare parentPersistedPropertyGroup, because this is 
+            // Intentionally do not compare parentPersistedPropertyGroup, because this is
             // just a back-pointer, and doesn't really contribute to the "identity" of
             // the property.
 
             return
                 (compareToProperty != null) &&
                 (String.Equals(compareToProperty.propertyName, this.propertyName, StringComparison.OrdinalIgnoreCase)) &&
-                (compareToProperty.propertyValue                == this.propertyValue) &&
-                (compareToProperty.FinalValue                   == this.FinalValue) &&
-                (compareToProperty.type                         == this.type);
+                (compareToProperty.propertyValue == this.propertyValue) &&
+                (compareToProperty.FinalValue == this.FinalValue) &&
+                (compareToProperty.type == this.type);
         }
 
         /// <summary>
+        /// This method (and the whole namespace) is deprecated. Please use the classes in these namespaces instead: 
+        /// <see href="/dotnet/api/microsoft.build.construction">Microsoft.Build.Construction</see>
+        /// <see href="/dotnet/api/microsoft.build.evaluation">Microsoft.Build.Evaluation</see>
+        /// <see href="/dotnet/api/microsoft.build.execution">Microsoft.Build.Execution</see>
+        /// 
         /// Returns the property value.
         /// </summary>
+        /// <remarks>
+        /// <format type="text/markdown"><![CDATA[
+        /// ## Remarks
+        /// > [!WARNING]
+        /// > This method (and the whole namespace) is deprecated. Please use the classes in these namespaces instead: 
+        /// > <xref:Microsoft.Build.Construction>
+        /// > <xref:Microsoft.Build.Evaluation>
+        /// > <xref:Microsoft.Build.Execution>
+        /// ]]></format>
+        /// </remarks>
         /// <owner>RGoel</owner>
         public override string ToString
             (
             )
         {
-            return (string) this;
+            return (string)this;
         }
 
         #endregion
@@ -718,11 +859,26 @@ namespace Microsoft.Build.BuildEngine
         #region Operators
 
         /// <summary>
+        /// This method (and the whole namespace) is deprecated. Please use the classes in these namespaces instead: 
+        /// <see href="/dotnet/api/microsoft.build.construction">Microsoft.Build.Construction</see>
+        /// <see href="/dotnet/api/microsoft.build.evaluation">Microsoft.Build.Evaluation</see>
+        /// <see href="/dotnet/api/microsoft.build.execution">Microsoft.Build.Execution</see>
+        /// 
         /// This allows an implicit typecast from a "BuildProperty" to a "string"
         /// when trying to access the property's value.
         /// </summary>
         /// <param name="propertyToCast"></param>
         /// <returns></returns>
+        /// <remarks>
+        /// <format type="text/markdown"><![CDATA[
+        /// ## Remarks
+        /// > [!WARNING]
+        /// > This method (and the whole namespace) is deprecated. Please use the classes in these namespaces instead: 
+        /// > <xref:Microsoft.Build.Construction>
+        /// > <xref:Microsoft.Build.Evaluation>
+        /// > <xref:Microsoft.Build.Execution>
+        /// ]]></format>
+        /// </remarks>
         /// <owner>rgoel</owner>
         public static explicit operator string
         (

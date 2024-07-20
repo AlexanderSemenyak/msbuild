@@ -1,20 +1,20 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using System.Xml;
 using Microsoft.Build.Construction;
 using Microsoft.Build.Evaluation;
 using Microsoft.Build.Execution;
 using Microsoft.Build.Shared;
 using Microsoft.Build.Utilities;
-using InvalidProjectFileException = Microsoft.Build.Exceptions.InvalidProjectFileException;
+using Shouldly;
 using Xunit;
 using Xunit.Abstractions;
-using Shouldly;
-using System.Reflection;
+using InvalidProjectFileException = Microsoft.Build.Exceptions.InvalidProjectFileException;
 
 #nullable disable
 
@@ -63,7 +63,7 @@ namespace Microsoft.Build.UnitTests.OM.Definition
 
             try
             {
-                path = FileUtilities.GetTemporaryFile();
+                path = FileUtilities.GetTemporaryFileName();
                 ProjectRootElement xml = ProjectRootElement.Create(path);
                 xml.Save();
 
@@ -95,7 +95,7 @@ namespace Microsoft.Build.UnitTests.OM.Definition
                 Project project = new Project();
                 Assert.Equal(0, ProjectCollection.GlobalProjectCollection.Count);
 
-                path = FileUtilities.GetTemporaryFile();
+                path = FileUtilities.GetTemporaryFileName();
                 project.Save(path);
 
                 Project project2 = ProjectCollection.GlobalProjectCollection.LoadProject(path);
@@ -121,10 +121,10 @@ namespace Microsoft.Build.UnitTests.OM.Definition
 
             try
             {
-                ProjectCollection collection = new ProjectCollection();
+                using ProjectCollection collection = new ProjectCollection();
                 Project project = new Project(collection);
 
-                path = FileUtilities.GetTemporaryFile();
+                path = FileUtilities.GetTemporaryFileName();
                 project.Save(path);
 
                 Project project2 = collection.LoadProject(path);
@@ -132,7 +132,10 @@ namespace Microsoft.Build.UnitTests.OM.Definition
             }
             finally
             {
-                if (path != null) File.Delete(path);
+                if (path != null)
+                {
+                    File.Delete(path);
+                }
             }
         }
 
@@ -160,7 +163,7 @@ namespace Microsoft.Build.UnitTests.OM.Definition
             {
                 path = CreateProjectFile();
 
-                var collection = new ProjectCollection();
+                using var collection = new ProjectCollection();
                 collection.SetGlobalProperty("p", "v");
                 Project project = collection.LoadProject(path);
 
@@ -191,7 +194,7 @@ namespace Microsoft.Build.UnitTests.OM.Definition
             {
                 path = CreateProjectFile();
 
-                ProjectCollection collection = new ProjectCollection();
+                using ProjectCollection collection = new ProjectCollection();
                 collection.SetGlobalProperty("p", "v");
                 Project project = collection.LoadProject(path, "4.0");
 
@@ -222,7 +225,7 @@ namespace Microsoft.Build.UnitTests.OM.Definition
             {
                 path = CreateProjectFile();
 
-                ProjectCollection collection = new ProjectCollection();
+                using ProjectCollection collection = new ProjectCollection();
                 collection.SetGlobalProperty("p", "v");
                 Project project = collection.LoadProject(path, null, "4.0");
 
@@ -243,9 +246,9 @@ namespace Microsoft.Build.UnitTests.OM.Definition
         [Fact]
         public void GlobalPropertyInheritLoadFromXml1()
         {
-            XmlReader reader = CreateProjectXmlReader();
+            using XmlReader reader = CreateProjectXmlReader();
 
-            var collection = new ProjectCollection();
+            using var collection = new ProjectCollection();
             collection.SetGlobalProperty("p", "v");
 
             Project project = collection.LoadProject(reader);
@@ -259,9 +262,9 @@ namespace Microsoft.Build.UnitTests.OM.Definition
         [Fact]
         public void GlobalPropertyInheritLoadFromXml2()
         {
-            XmlReader reader = CreateProjectXmlReader();
+            using XmlReader reader = CreateProjectXmlReader();
 
-            var collection = new ProjectCollection();
+            using var collection = new ProjectCollection();
             collection.SetGlobalProperty("p", "v");
 
             Project project = collection.LoadProject(reader, ObjectModelHelpers.MSBuildDefaultToolsVersion);
@@ -275,7 +278,7 @@ namespace Microsoft.Build.UnitTests.OM.Definition
         [Fact]
         public void GlobalPropertyInheritProjectConstructor()
         {
-            var collection = new ProjectCollection();
+            using var collection = new ProjectCollection();
             collection.SetGlobalProperty("p", "v");
 
             var project = new Project(collection);
@@ -293,7 +296,7 @@ namespace Microsoft.Build.UnitTests.OM.Definition
 
             try
             {
-                path = FileUtilities.GetTemporaryFile();
+                path = FileUtilities.GetTemporaryFileName();
                 ProjectRootElement xml = ProjectRootElement.Create();
                 xml.Save(path);
                 Assert.Equal(0, ProjectCollection.GlobalProjectCollection.Count);
@@ -319,7 +322,7 @@ namespace Microsoft.Build.UnitTests.OM.Definition
         {
             var project1 = new Project { FullPath = "c:\\1" };
 
-            var collection = new ProjectCollection();
+            using var collection = new ProjectCollection();
             var project2 = new Project(collection) { FullPath = "c:\\1" };
 
             Assert.True(ReferenceEquals(project2, collection.LoadProject("c:\\1")));
@@ -337,16 +340,16 @@ namespace Microsoft.Build.UnitTests.OM.Definition
 
             try
             {
-                path = FileUtilities.GetTemporaryFile();
+                path = FileUtilities.GetTemporaryFileName();
                 ProjectRootElement.Create(path).Save();
 
-                ProjectCollection collection1 = new ProjectCollection();
+                using ProjectCollection collection1 = new ProjectCollection();
                 Project project1 = collection1.LoadProject(path);
                 Project project1b = collection1.LoadProject(path);
 
                 Assert.True(ReferenceEquals(project1.Xml, project1b.Xml));
 
-                ProjectCollection collection2 = new ProjectCollection();
+                using ProjectCollection collection2 = new ProjectCollection();
                 Project project2 = collection2.LoadProject(path);
 
                 Assert.False(ReferenceEquals(project1.Xml, project2.Xml));
@@ -524,7 +527,9 @@ namespace Microsoft.Build.UnitTests.OM.Definition
                     </Project>
                 ";
 
-            var project = new Project(XmlReader.Create(new StringReader(content))) { FullPath = "c:\\123.proj" };
+            using ProjectFromString projectFromString = new(content);
+            Project project = projectFromString.Project;
+            project.FullPath = "c:\\123.proj";
 
             Project project2 = ProjectCollection.GlobalProjectCollection.LoadProject("c:\\123.proj", null, null);
 
@@ -544,7 +549,9 @@ namespace Microsoft.Build.UnitTests.OM.Definition
                     </Project>
                 ";
 
-            var project = new Project(XmlReader.Create(new StringReader(content))) { FullPath = "c:\\123.proj" };
+            using ProjectFromString projectFromString = new(content);
+            Project project = projectFromString.Project;
+            project.FullPath = "c:\\123.proj";
 
             Project project2 = ProjectCollection.GlobalProjectCollection.LoadProject("c:\\123.proj", null, null);
 
@@ -558,7 +565,7 @@ namespace Microsoft.Build.UnitTests.OM.Definition
         [Fact]
         public void ChangingGlobalPropertiesUpdatesCollection()
         {
-            ProjectCollection collection = new ProjectCollection();
+            using ProjectCollection collection = new ProjectCollection();
             var project = new Project(collection) { FullPath = "c:\\x" };
             project.SetGlobalProperty("p", "v1"); // should update collection
 
@@ -575,7 +582,7 @@ namespace Microsoft.Build.UnitTests.OM.Definition
         [Fact]
         public void SettingGlobalPropertiesOnCollectionUpdatesProjects()
         {
-            var collection = new ProjectCollection();
+            using var collection = new ProjectCollection();
             var project1 = new Project(collection) { FullPath = "c:\\y" };
             Assert.Empty(project1.GlobalProperties);
 
@@ -602,7 +609,7 @@ namespace Microsoft.Build.UnitTests.OM.Definition
         [Fact]
         public void SettingGlobalPropertiesOnCollectionUpdatesProjects2()
         {
-            var collection = new ProjectCollection();
+            using var collection = new ProjectCollection();
             var project1 = new Project(collection) { FullPath = "c:\\y" };
             // load into collection
             project1.SetGlobalProperty("g1", "v0");
@@ -624,7 +631,7 @@ namespace Microsoft.Build.UnitTests.OM.Definition
         [Fact]
         public void RemovingGlobalPropertiesOnCollectionUpdatesProjects()
         {
-            var collection = new ProjectCollection();
+            using var collection = new ProjectCollection();
             var project1 = new Project(collection) { FullPath = "c:\\y" };
             Assert.Empty(project1.GlobalProperties);
 
@@ -669,7 +676,7 @@ namespace Microsoft.Build.UnitTests.OM.Definition
         [Fact]
         public void RemovingGlobalPropertiesOnCollectionUpdatesProjects2()
         {
-            var collection = new ProjectCollection();
+            using var collection = new ProjectCollection();
             collection.SetGlobalProperty("g1", "v1");
 
             var project1 = new Project(collection) { FullPath = "c:\\y" };
@@ -769,8 +776,7 @@ namespace Microsoft.Build.UnitTests.OM.Definition
                     Console.WriteLine(ex.Message);
                     throw;
                 }
-            }
-           );
+            });
         }
 
         /// <summary>
@@ -823,13 +829,13 @@ namespace Microsoft.Build.UnitTests.OM.Definition
 
             try
             {
-                file1 = FileUtilities.GetTemporaryFile();
-                file2 = FileUtilities.GetTemporaryFile();
+                file1 = FileUtilities.GetTemporaryFileName();
+                file2 = FileUtilities.GetTemporaryFileName();
 
                 Project project = new Project();
                 project.Save(file1);
 
-                ProjectCollection collection = new ProjectCollection();
+                using ProjectCollection collection = new ProjectCollection();
 
                 Project project2 = collection.LoadProject(file1);
                 project2.Save(file2);
@@ -838,8 +844,15 @@ namespace Microsoft.Build.UnitTests.OM.Definition
             }
             finally
             {
-                if (file1 != null) File.Delete(file1);
-                if (file2 != null) File.Delete(file2);
+                if (file1 != null)
+                {
+                    File.Delete(file1);
+                }
+
+                if (file2 != null)
+                {
+                    File.Delete(file2);
+                }
             }
         }
 
@@ -855,14 +868,14 @@ namespace Microsoft.Build.UnitTests.OM.Definition
 
             try
             {
-                file1 = FileUtilities.GetTemporaryFile();
-                file2 = FileUtilities.GetTemporaryFile();
+                file1 = FileUtilities.GetTemporaryFileName();
+                file2 = FileUtilities.GetTemporaryFileName();
 
                 var project = new Project();
                 project.Save(file1);
                 project.ProjectCollection.UnloadProject(project);
 
-                var collection = new ProjectCollection();
+                using var collection = new ProjectCollection();
 
                 Project project2 = collection.LoadProject(file1);
                 collection.UnloadProject(project2);
@@ -874,8 +887,15 @@ namespace Microsoft.Build.UnitTests.OM.Definition
             }
             finally
             {
-                if (file1 != null) File.Delete(file1);
-                if (file2 != null) File.Delete(file2);
+                if (file1 != null)
+                {
+                    File.Delete(file1);
+                }
+
+                if (file2 != null)
+                {
+                    File.Delete(file2);
+                }
             }
         }
 
@@ -891,14 +911,14 @@ namespace Microsoft.Build.UnitTests.OM.Definition
 
             try
             {
-                file1 = FileUtilities.GetTemporaryFile();
-                file2 = FileUtilities.GetTemporaryFile();
+                file1 = FileUtilities.GetTemporaryFileName();
+                file2 = FileUtilities.GetTemporaryFileName();
 
                 var project = new Project();
                 project.Save(file1);
                 project.ProjectCollection.UnloadProject(project);
 
-                var collection = new ProjectCollection();
+                using var collection = new ProjectCollection();
 
                 collection.LoadProject(file1);
                 collection.UnloadAllProjects();
@@ -910,8 +930,15 @@ namespace Microsoft.Build.UnitTests.OM.Definition
             }
             finally
             {
-                if (file1 != null) File.Delete(file1);
-                if (file2 != null) File.Delete(file2);
+                if (file1 != null)
+                {
+                    File.Delete(file1);
+                }
+
+                if (file2 != null)
+                {
+                    File.Delete(file2);
+                }
             }
         }
 
@@ -921,7 +948,7 @@ namespace Microsoft.Build.UnitTests.OM.Definition
         [Fact]
         public void AddToolset()
         {
-            var collection = new ProjectCollection();
+            using var collection = new ProjectCollection();
             collection.RemoveAllToolsets();
 
             var toolset = new Toolset("x", "c:\\y", collection, null);
@@ -941,7 +968,7 @@ namespace Microsoft.Build.UnitTests.OM.Definition
         [Fact]
         public void AddTwoToolsets()
         {
-            var collection = new ProjectCollection();
+            using var collection = new ProjectCollection();
             collection.RemoveAllToolsets();
 
             var toolset1 = new Toolset("x", "c:\\y", collection, null);
@@ -965,7 +992,7 @@ namespace Microsoft.Build.UnitTests.OM.Definition
         [Fact]
         public void ReplaceToolset()
         {
-            var collection = new ProjectCollection();
+            using var collection = new ProjectCollection();
             collection.RemoveAllToolsets();
 
             var toolset1 = new Toolset("x", "c:\\y", collection, null);
@@ -999,7 +1026,7 @@ namespace Microsoft.Build.UnitTests.OM.Definition
         [Fact]
         public void RemoveToolset()
         {
-            var collection = new ProjectCollection();
+            using var collection = new ProjectCollection();
 
             var toolset1 = new Toolset("x", "c:\\y", collection, null);
             var toolset2 = new Toolset("y", "c:\\z", collection, null);
@@ -1021,7 +1048,7 @@ namespace Microsoft.Build.UnitTests.OM.Definition
         [Fact]
         public void RemoveNonexistentToolset()
         {
-            var collection = new ProjectCollection();
+            using var collection = new ProjectCollection();
             Assert.False(collection.RemoveToolset("nonexistent"));
         }
 
@@ -1061,7 +1088,7 @@ namespace Microsoft.Build.UnitTests.OM.Definition
                 return;
             }
 
-            var collection = new ProjectCollection();
+            using var collection = new ProjectCollection();
             Assert.Equal(ObjectModelHelpers.MSBuildDefaultToolsVersion, collection.DefaultToolsVersion);
         }
 
@@ -1073,7 +1100,6 @@ namespace Microsoft.Build.UnitTests.OM.Definition
 #else
         [Fact(Skip = "https://github.com/dotnet/msbuild/issues/276")]
 #endif
-        [Trait("Category", "mono-osx-failing")]
         public void DefaultToolsVersion2()
         {
             if (ToolLocationHelper.GetPathToDotNetFramework(TargetDotNetFrameworkVersion.Version20) != null)
@@ -1082,7 +1108,7 @@ namespace Microsoft.Build.UnitTests.OM.Definition
                 return;
             }
 
-            var collection = new ProjectCollection(null, null, ToolsetDefinitionLocations.Registry);
+            using var collection = new ProjectCollection(null, null, ToolsetDefinitionLocations.Registry);
             Assert.Equal(ObjectModelHelpers.MSBuildDefaultToolsVersion, collection.DefaultToolsVersion);
         }
 
@@ -1116,7 +1142,7 @@ namespace Microsoft.Build.UnitTests.OM.Definition
         [Fact]
         public void SetDefaultToolsVersion()
         {
-            var collection = new ProjectCollection();
+            using var collection = new ProjectCollection();
             collection.AddToolset(new Toolset("x", @"c:\y", collection, null));
 
             collection.DefaultToolsVersion = "x";
@@ -1129,7 +1155,8 @@ namespace Microsoft.Build.UnitTests.OM.Definition
                     </Project>
                 ");
 
-            var project = new Project(XmlReader.Create(new StringReader(content)), null, null, collection);
+            using ProjectFromString projectFromString = new(content, null, null, collection);
+            Project project = projectFromString.Project;
 
             // ... and after all that, we end up defaulting to the current ToolsVersion instead.  There's a way
             // to turn this behavior (new in Dev12) off, but it requires setting an environment variable and
@@ -1144,7 +1171,7 @@ namespace Microsoft.Build.UnitTests.OM.Definition
         [Fact]
         public void ProjectCollectionChangedEvent()
         {
-            var collection = new ProjectCollection();
+            using var collection = new ProjectCollection();
             bool dirtyRaised = false;
             ProjectCollectionChangedState expectedChange = ProjectCollectionChangedState.Loggers;
             collection.ProjectCollectionChanged +=
@@ -1236,8 +1263,8 @@ namespace Microsoft.Build.UnitTests.OM.Definition
         {
             // Verify if the project, project collection and the value we are setting in the project collection are all the same
             // then the projects value for the property should not change and no event should be fired.
-            var collection = new ProjectCollection();
-            XmlReader reader = CreateProjectXmlReader();
+            using var collection = new ProjectCollection();
+            using XmlReader reader = CreateProjectXmlReader();
             Project project = collection.LoadProject(reader, ObjectModelHelpers.MSBuildDefaultToolsVersion);
             project.SetProperty("a", "1");
             collection.SetGlobalProperty("a", "1");
@@ -1245,55 +1272,55 @@ namespace Microsoft.Build.UnitTests.OM.Definition
 
             // Verify if the project, project collection and the value we are setting in the project collection are all the same
             // then the projects value for the property should not change and no event should be fired.
-            collection = new ProjectCollection();
-            reader = CreateProjectXmlReader();
-            project = collection.LoadProject(reader, ObjectModelHelpers.MSBuildDefaultToolsVersion);
+            using var collection2 = new ProjectCollection();
+            using var reader2 = CreateProjectXmlReader();
+            project = collection2.LoadProject(reader2, ObjectModelHelpers.MSBuildDefaultToolsVersion);
             project.SetProperty("a", "%28x86%29");
-            collection.SetGlobalProperty("a", "%28x86%29");
-            VerifyProjectCollectionEvents(collection, false, "%28x86%29");
+            collection2.SetGlobalProperty("a", "%28x86%29");
+            VerifyProjectCollectionEvents(collection2, false, "%28x86%29");
 
             // Verify if the project, project collection have the same value but a new value is set in the project collection
             // then the projects value for the property should be change and an event should be fired.
-            collection = new ProjectCollection();
-            reader = CreateProjectXmlReader();
-            project = collection.LoadProject(reader, ObjectModelHelpers.MSBuildDefaultToolsVersion);
+            using var collection3 = new ProjectCollection();
+            using var reader3 = CreateProjectXmlReader();
+            project = collection3.LoadProject(reader3, ObjectModelHelpers.MSBuildDefaultToolsVersion);
             project.SetProperty("a", "1");
-            collection.SetGlobalProperty("a", "1");
-            VerifyProjectCollectionEvents(collection, true, "2");
+            collection3.SetGlobalProperty("a", "1");
+            VerifyProjectCollectionEvents(collection3, true, "2");
 
             // Verify if the project, project collection have the same value but a new value is set in the project collection
             // then the projects value for the property should be change and an event should be fired.
-            collection = new ProjectCollection();
-            reader = CreateProjectXmlReader();
-            project = collection.LoadProject(reader, ObjectModelHelpers.MSBuildDefaultToolsVersion);
+            using var collection4 = new ProjectCollection();
+            using var reader4 = CreateProjectXmlReader();
+            project = collection4.LoadProject(reader4, ObjectModelHelpers.MSBuildDefaultToolsVersion);
             project.SetProperty("a", "1");
-            collection.SetGlobalProperty("a", "(x86)");
-            VerifyProjectCollectionEvents(collection, true, "%28x86%29");
+            collection4.SetGlobalProperty("a", "(x86)");
+            VerifyProjectCollectionEvents(collection4, true, "%28x86%29");
 
             // Verify if the project has one value and project collection and the property we are setting on the project collection have the same value
             // then the projects value for the property should be change but no event should be fired
-            collection = new ProjectCollection();
-            reader = CreateProjectXmlReader();
-            project = collection.LoadProject(reader, ObjectModelHelpers.MSBuildDefaultToolsVersion);
+            using var collection5 = new ProjectCollection();
+            using var reader5 = CreateProjectXmlReader();
+            project = collection5.LoadProject(reader5, ObjectModelHelpers.MSBuildDefaultToolsVersion);
             project.SetProperty("a", "2");
-            collection.SetGlobalProperty("a", "1");
+            collection5.SetGlobalProperty("a", "1");
 
-            VerifyProjectCollectionEvents(collection, false, "1");
+            VerifyProjectCollectionEvents(collection5, false, "1");
 
             // Verify if the project and the property being set have one value but the project collection has another
             // then the projects value for the property should not change and event should be fired
-            collection = new ProjectCollection();
-            reader = CreateProjectXmlReader();
-            project = collection.LoadProject(reader, ObjectModelHelpers.MSBuildDefaultToolsVersion);
+            using var collection6 = new ProjectCollection();
+            using var reader6 = CreateProjectXmlReader();
+            project = collection6.LoadProject(reader6, ObjectModelHelpers.MSBuildDefaultToolsVersion);
             project.SetProperty("a", "1");
-            collection.SetGlobalProperty("a", "2");
-            VerifyProjectCollectionEvents(collection, true, "1");
+            collection6.SetGlobalProperty("a", "2");
+            VerifyProjectCollectionEvents(collection6, true, "1");
 
             // item is added to project collection for the first time. Make sure it is added to the project and an event is fired.
-            collection = new ProjectCollection();
-            reader = CreateProjectXmlReader();
-            project = collection.LoadProject(reader, ObjectModelHelpers.MSBuildDefaultToolsVersion);
-            VerifyProjectCollectionEvents(collection, true, "1");
+            using var collection7 = new ProjectCollection();
+            using var reader7 = CreateProjectXmlReader();
+            project = collection7.LoadProject(reader7, ObjectModelHelpers.MSBuildDefaultToolsVersion);
+            VerifyProjectCollectionEvents(collection7, true, "1");
         }
 
         /// <summary>
@@ -1302,7 +1329,7 @@ namespace Microsoft.Build.UnitTests.OM.Definition
         [Fact]
         public void ProjectXmlChangedEvent()
         {
-            var collection = new ProjectCollection();
+            using var collection = new ProjectCollection();
             ProjectRootElement pre = null;
             bool dirtyRaised = false;
             collection.ProjectXmlChanged +=
@@ -1361,7 +1388,7 @@ namespace Microsoft.Build.UnitTests.OM.Definition
         [Fact]
         public void ProjectChangedEvent()
         {
-            var collection = new ProjectCollection();
+            using var collection = new ProjectCollection();
             Project project = null;
             bool dirtyRaised = false;
             collection.ProjectChanged +=
@@ -1433,7 +1460,7 @@ namespace Microsoft.Build.UnitTests.OM.Definition
         private static string CreateProjectFile()
         {
             ProjectRootElement xml = ProjectRootElement.Create();
-            string path = FileUtilities.GetTemporaryFile();
+            string path = FileUtilities.GetTemporaryFileName();
             xml.Save(path);
             return path;
         }

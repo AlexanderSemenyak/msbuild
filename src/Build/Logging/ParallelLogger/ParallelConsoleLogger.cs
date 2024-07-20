@@ -1,16 +1,16 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Collections;
-using System.Globalization;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
 using Microsoft.Build.Evaluation;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Shared;
-using Microsoft.Build.Utilities;
-using ColorSetter = Microsoft.Build.Logging.ColorSetter;
 using ColorResetter = Microsoft.Build.Logging.ColorResetter;
+using ColorSetter = Microsoft.Build.Logging.ColorSetter;
 using WriteHandler = Microsoft.Build.Logging.WriteHandler;
 
 #nullable disable
@@ -50,8 +50,7 @@ namespace Microsoft.Build.BackEnd.Logging
                 verbosity,
                 new WriteHandler(Console.Out.Write),
                 new ColorSetter(SetColor),
-                new ColorResetter(ResetColor)
-            )
+                new ColorResetter(ResetColor))
         {
             // do nothing
         }
@@ -59,13 +58,11 @@ namespace Microsoft.Build.BackEnd.Logging
         /// <summary>
         /// Initializes the logger, with alternate output handlers.
         /// </summary>
-        public ParallelConsoleLogger
-        (
+        public ParallelConsoleLogger(
             LoggerVerbosity verbosity,
             WriteHandler write,
             ColorSetter colorSet,
-            ColorResetter colorReset
-        )
+            ColorResetter colorReset)
         {
             InitializeConsoleMethods(verbosity, write, colorSet, colorReset);
             _deferredMessages = new Dictionary<BuildEventContext, List<BuildMessageEventArgs>>(s_compareContextNodeId);
@@ -88,7 +85,7 @@ namespace Microsoft.Build.BackEnd.Logging
                     // Get the size of the console buffer so messages can be formatted to the console width
                     try
                     {
-                        _bufferWidth = Console.BufferWidth;
+                        _bufferWidth = ConsoleConfiguration.BufferWidth;
                         _alignMessages = true;
                     }
                     catch (Exception)
@@ -104,7 +101,7 @@ namespace Microsoft.Build.BackEnd.Logging
                 }
             }
 
-            _consoleOutputAligner = new ConsoleOutputAligner(_bufferWidth, _alignMessages);
+            _consoleOutputAligner = new ConsoleOutputAligner(_bufferWidth, _alignMessages, (IStringBuilderProvider)this);
         }
 
         #endregion
@@ -184,7 +181,7 @@ namespace Microsoft.Build.BackEnd.Logging
 
         /// <summary>
         /// Reset the states of per-build member variables
-        /// VSW#516376 
+        /// VSW#516376
         /// </summary>
         internal override void ResetConsoleLoggerState()
         {
@@ -224,14 +221,24 @@ namespace Microsoft.Build.BackEnd.Logging
             buildStarted = e.Timestamp;
             _hasBuildStarted = true;
 
-            if (showOnlyErrors || showOnlyWarnings) return;
+            if (showOnlyErrors || showOnlyWarnings)
+            {
+                return;
+            }
 
             if (IsVerbosityAtLeast(LoggerVerbosity.Normal))
             {
                 WriteLinePrettyFromResource("BuildStartedWithTime", e.Timestamp);
             }
 
-            WriteEnvironment(e.BuildEnvironment);
+            if (Traits.LogAllEnvironmentVariables)
+            {
+                WriteEnvironment(e.BuildEnvironment);
+            }
+            else
+            {
+                WriteEnvironment(e.BuildEnvironment?.Where(kvp => EnvironmentUtilities.IsWellKnownEnvironmentDerivedProperty(kvp.Key)).ToDictionary(kvp => kvp.Key, kvp => kvp.Value));
+            }
         }
 
         /// <summary>
@@ -332,18 +339,24 @@ namespace Microsoft.Build.BackEnd.Logging
         }
 
         /// <summary>
-        /// At the end of the build, repeats the errors and warnings that occurred 
+        /// At the end of the build, repeats the errors and warnings that occurred
         /// during the build, and displays the error count and warning count.
         /// Does this in a "flat" style, without context.
         /// </summary>
         private void ShowFlatErrorWarningSummary()
         {
-            if (warningList.Count == 0 && errorList.Count == 0) return;
+            if (warningList.Count == 0 && errorList.Count == 0)
+            {
+                return;
+            }
 
             // If we're showing only warnings and/or errors, don't summarize.
-            // This is the buildc.err case. There's no point summarizing since we'd just 
+            // This is the buildc.err case. There's no point summarizing since we'd just
             // repeat the entire log content again.
-            if (showOnlyErrors || showOnlyWarnings) return;
+            if (showOnlyErrors || showOnlyWarnings)
+            {
+                return;
+            }
 
             // Make some effort to distinguish this summary from the output above, since otherwise
             // it's not clear in lower verbosities
@@ -371,18 +384,24 @@ namespace Microsoft.Build.BackEnd.Logging
         }
 
         /// <summary>
-        /// At the end of the build, repeats the errors and warnings that occurred 
+        /// At the end of the build, repeats the errors and warnings that occurred
         /// during the build, and displays the error count and warning count.
         /// Does this in a "nested" style.
         /// </summary>
         private void ShowNestedErrorWarningSummary()
         {
-            if (warningList.Count == 0 && errorList.Count == 0) return;
+            if (warningList.Count == 0 && errorList.Count == 0)
+            {
+                return;
+            }
 
             // If we're showing only warnings and/or errors, don't summarize.
-            // This is the buildc.err case. There's no point summarizing since we'd just 
+            // This is the buildc.err case. There's no point summarizing since we'd just
             // repeat the entire log content again.
-            if (showOnlyErrors || showOnlyWarnings) return;
+            if (showOnlyErrors || showOnlyWarnings)
+            {
+                return;
+            }
 
             if (warningCount > 0)
             {
@@ -408,13 +427,13 @@ namespace Microsoft.Build.BackEnd.Logging
             foreach (BuildEventArgs errorWarningEventArgs in listToProcess)
             {
                 // Target event may be null for a couple of reasons:
-                // 1) If the event was from a project load, or engine 
+                // 1) If the event was from a project load, or engine
                 // 2) If the flushing of the event queue for each request and result is turned off
                 // as this could cause errors and warnings to be seen by the logger after the target finished event
                 // which would cause the error or warning to have no matching target started event as they are removed
                 // when a target finished event is logged.
-                // 3) On NORMAL verbosity if the error or warning occurs in a project load then the error or warning and the target started event will be forwarded to 
-                // different forwarding loggers which cannot communicate to each other, meaning there will be no matching target started event logged 
+                // 3) On NORMAL verbosity if the error or warning occurs in a project load then the error or warning and the target started event will be forwarded to
+                // different forwarding loggers which cannot communicate to each other, meaning there will be no matching target started event logged
                 // as the forwarding logger did not know to forward the target started event
                 string targetName = null;
                 TargetStartedEventMinimumFields targetEvent = _buildEventManager.GetTargetStartedEvent(errorWarningEventArgs.BuildEventContext);
@@ -595,7 +614,7 @@ namespace Microsoft.Build.BackEnd.Logging
                     // Add the item value to the string to be printed in error/warning messages.
                     if (!descriptionEmpty)
                     {
-                        projectConfigurationDescription.Append(" "); 
+                        projectConfigurationDescription.Append(" ");
                     }
 
                     projectConfigurationDescription.Append(itemSpec);
@@ -686,7 +705,7 @@ namespace Microsoft.Build.BackEnd.Logging
                             }
                         }
 
-                        // In single proc only make a space between the project done event and the next line, this 
+                        // In single proc only make a space between the project done event and the next line, this
                         // is to increase the readability on the single proc log when there are a number of done events
                         // or a mix of done events and project started events. Also only do this on the console and not any log file.
                         if (NumberOfProcessors == 1 && runningWithCharacterFileType)
@@ -706,14 +725,18 @@ namespace Microsoft.Build.BackEnd.Logging
         /// <summary>
         /// Writes out the list of property names and their values.
         /// This could be done at any time during the build to show the latest
-        /// property values, using the cached reference to the list from the 
+        /// property values, using the cached reference to the list from the
         /// appropriate ProjectStarted event.
         /// </summary>
         /// <param name="e">A <see cref="BuildEventArgs"/> object containing information about the build event.</param>
         /// <param name="properties">List of properties</param>
         internal void WriteProperties(BuildEventArgs e, IEnumerable properties)
         {
-            if (showOnlyErrors || showOnlyWarnings) return;
+            if (showOnlyErrors || showOnlyWarnings)
+            {
+                return;
+            }
+
             var propertyList = ExtractPropertyList(properties);
 
             // if there are no properties to display return out of the method and dont print out anything related to displaying
@@ -769,14 +792,18 @@ namespace Microsoft.Build.BackEnd.Logging
         /// <summary>
         /// Writes out the list of item specs and their metadata.
         /// This could be done at any time during the build to show the latest
-        /// items, using the cached reference to the list from the 
+        /// items, using the cached reference to the list from the
         /// appropriate ProjectStarted event.
         /// </summary>
         /// <param name="e">A <see cref="BuildEventArgs"/> object containing information about the build event.</param>
         /// <param name="items">List of items</param>
         internal void WriteItems(BuildEventArgs e, IEnumerable items)
         {
-            if (showOnlyErrors || showOnlyWarnings) return;
+            if (showOnlyErrors || showOnlyWarnings)
+            {
+                return;
+            }
+
             SortedList itemList = ExtractItemList(items);
 
             // If there are no Items to display return out of the method and don't print out anything related to displaying
@@ -999,10 +1026,10 @@ namespace Microsoft.Build.BackEnd.Logging
         public override void ErrorHandler(object sender, BuildErrorEventArgs e)
         {
             ErrorUtilities.VerifyThrowArgumentNull(e.BuildEventContext, "BuildEventContext");
-            // Keep track of the number of error events raised 
+            // Keep track of the number of error events raised
             errorCount++;
 
-            // If there is an error we need to walk up the call stack and make sure that 
+            // If there is an error we need to walk up the call stack and make sure that
             // the project started events back to the root project know an error has occurred
             // and are not removed when they finish
             _buildEventManager.SetErrorWarningFlagOnCallStack(e.BuildEventContext);
@@ -1048,7 +1075,7 @@ namespace Microsoft.Build.BackEnd.Logging
             // Keep track of the number of warning events raised during the build
             warningCount++;
 
-            // If there is a warning we need to walk up the call stack and make sure that 
+            // If there is a warning we need to walk up the call stack and make sure that
             // the project started events back to the root project know a warning has occurred
             // and are not removed when they finish
             _buildEventManager.SetErrorWarningFlagOnCallStack(e.BuildEventContext);
@@ -1092,7 +1119,15 @@ namespace Microsoft.Build.BackEnd.Logging
         /// </summary>
         public override void MessageHandler(object sender, BuildMessageEventArgs e)
         {
-            if (showOnlyErrors || showOnlyWarnings) return;
+            if (showOnlyErrors || showOnlyWarnings)
+            {
+                return;
+            }
+
+            if (e.BuildEventContext == null && e is AssemblyLoadBuildEventArgs)
+            {
+                return;
+            }
 
             ErrorUtilities.VerifyThrowArgumentNull(e.BuildEventContext, "BuildEventContext");
             bool print = false;
@@ -1114,14 +1149,13 @@ namespace Microsoft.Build.BackEnd.Logging
 
             if (print)
             {
-                // If the event has a valid Project contextId but the project started event has not been fired, the message needs to be 
+                // If the event has a valid Project contextId but the project started event has not been fired, the message needs to be
                 // buffered until the project started event is fired
                 if (
                        _hasBuildStarted
                        && e.BuildEventContext.ProjectContextId != BuildEventContext.InvalidProjectContextId
                        && _buildEventManager.GetProjectStartedEvent(e.BuildEventContext) == null
-                       && IsVerbosityAtLeast(LoggerVerbosity.Normal)
-                    )
+                       && IsVerbosityAtLeast(LoggerVerbosity.Normal))
                 {
                     if (!_deferredMessages.TryGetValue(e.BuildEventContext, out List<BuildMessageEventArgs> messageList))
                     {
@@ -1178,20 +1212,27 @@ namespace Microsoft.Build.BackEnd.Logging
                     propertyOutputMap[evaluationKey] = value;
                 }
             }
+            else if (e is BuildCanceledEventArgs buildCanceled)
+            {
+                Console.WriteLine(e.Message);
+            }
         }
 
         private void DisplayDeferredStartedEvents(BuildEventContext e)
         {
-            if (showOnlyErrors || showOnlyWarnings) return;
+            if (showOnlyErrors || showOnlyWarnings)
+            {
+                return;
+            }
 
-            // Display any project started events which were deferred until a visible 
+            // Display any project started events which were deferred until a visible
             // message from their project is displayed
             if (IsVerbosityAtLeast(LoggerVerbosity.Normal))
             {
                 DisplayDeferredProjectStartedEvent(e);
             }
 
-            // Display any target started events which were deferred until a visible 
+            // Display any target started events which were deferred until a visible
             // message from their target is displayed
             if (IsVerbosityAtLeast(LoggerVerbosity.Detailed))
             {
@@ -1204,16 +1245,21 @@ namespace Microsoft.Build.BackEnd.Logging
         /// </summary>
         private void PrintMessage(BuildMessageEventArgs e, bool lightenText)
         {
-            string nonNullMessage;
+            string nonNullMessage = null;
+
+            if (e is EnvironmentVariableReadEventArgs environmentPropertyReadEventArgs)
+            {
+                nonNullMessage = ResourceUtilities.FormatResourceStringIgnoreCodeAndKeyword("EnvironmentDerivedPropertyRead", environmentPropertyReadEventArgs.EnvironmentVariableName, e.Message);
+            }
 
             // Include file information if present.
             if (e.File != null)
             {
-                nonNullMessage = EventArgsFormatting.FormatEventMessage(e, showProjectFile, FindLogOutputProperties(e));
+                nonNullMessage = EventArgsFormatting.FormatEventMessage(e, showProjectFile, FindLogOutputProperties(e), nonNullMessage);
             }
             else
             {
-                nonNullMessage = e.Message ?? string.Empty;
+                nonNullMessage ??= e.Message ?? string.Empty;
             }
 
             int prefixAdjustment = 0;
@@ -1351,50 +1397,7 @@ namespace Microsoft.Build.BackEnd.Logging
             lock (_lockObject)
             {
                 int adjustedPrefixWidth = _prefixWidth + prefixAdjustment;
-
-                if (!ChangeWaves.AreFeaturesEnabled(ChangeWaves.Wave17_0))
-                {
-                    // The string may contain new lines, treat each new line as a different string to format and send to the console
-                    string[] nonNullMessages = SplitStringOnNewLines(message);
-                    for (int i = 0; i < nonNullMessages.Length; i++)
-                    {
-                        string nonNullMessage = nonNullMessages[i];
-                        // Take into account the new line char which will be added to the end or each reformatted string
-                        int bufferWidthMinusNewLine = _bufferWidth - 1;
-
-                        // If the buffer is larger then the prefix information (timestamp and key) then reformat the messages. 
-                        // If there is not enough room just print the message out and let the console do the formatting
-                        bool bufferIsLargerThanPrefix = bufferWidthMinusNewLine > adjustedPrefixWidth;
-                        bool messageAndPrefixTooLargeForBuffer = (nonNullMessage.Length + adjustedPrefixWidth) > bufferWidthMinusNewLine;
-                        if (bufferIsLargerThanPrefix && messageAndPrefixTooLargeForBuffer && _alignMessages)
-                        {
-                            // Our message may have embedded tab characters, so expand those to their space
-                            // equivalent so that wrapping works as expected.
-                            nonNullMessage = nonNullMessage.Replace("\t", consoleTab);
-
-                            // If the message and the prefix are too large for one line in the console, split the string to fit
-                            int index = 0;
-                            int messageLength = nonNullMessage.Length;
-                            // Loop until all the string has been sent to the console
-                            while (index < messageLength)
-                            {
-                                // Calculate how many chars will fit on the console buffer
-                                int amountToCopy = (messageLength - index) < (bufferWidthMinusNewLine - adjustedPrefixWidth) ? (messageLength - index) : (bufferWidthMinusNewLine - adjustedPrefixWidth);
-                                WriteBasedOnPrefix(nonNullMessage.Substring(index, amountToCopy), prefixAlreadyWritten && index == 0 && i == 0, adjustedPrefixWidth);
-                                index += amountToCopy;
-                            }
-                        }
-                        else
-                        {
-                            // there is not enough room just print the message out and let the console do the formatting
-                            WriteBasedOnPrefix(nonNullMessage, prefixAlreadyWritten, adjustedPrefixWidth);
-                        }
-                    }
-                }
-                else
-                {
-                    WriteHandler(_consoleOutputAligner.AlignConsoleOutput(message, prefixAlreadyWritten, adjustedPrefixWidth));
-                }
+                WriteHandler(_consoleOutputAligner.AlignConsoleOutput(message, prefixAlreadyWritten, adjustedPrefixWidth));
             }
         }
 
@@ -1419,7 +1422,10 @@ namespace Microsoft.Build.BackEnd.Logging
         /// </summary>
         private void DisplayDeferredTargetStartedEvent(BuildEventContext e)
         {
-            if (showOnlyErrors || showOnlyWarnings) return;
+            if (showOnlyErrors || showOnlyWarnings)
+            {
+                return;
+            }
 
             // Get the deferred target started event
             TargetStartedEventMinimumFields targetStartedEvent = _buildEventManager.GetTargetStartedEvent(e);
@@ -1491,7 +1497,10 @@ namespace Microsoft.Build.BackEnd.Logging
         /// </summary>
         private void DisplayDeferredProjectStartedEvent(BuildEventContext e)
         {
-            if (showOnlyErrors || showOnlyWarnings) return;
+            if (showOnlyErrors || showOnlyWarnings)
+            {
+                return;
+            }
 
             if (!SkipProjectStartedText)
             {
@@ -1549,7 +1558,7 @@ namespace Microsoft.Build.BackEnd.Logging
                         resetColor();
                     }
 
-                    // Make the last shown build event context to be null so that the next message will always print out the target name. If this is not null 
+                    // Make the last shown build event context to be null so that the next message will always print out the target name. If this is not null
                     // then the first message after the project started event will not have the target name printed out which was causing some confusion.
                     ShownBuildEventContext(null);
                 }
@@ -1561,7 +1570,10 @@ namespace Microsoft.Build.BackEnd.Logging
         /// </summary>
         public override void CustomEventHandler(object sender, CustomBuildEventArgs e)
         {
-            if (showOnlyErrors || showOnlyWarnings) return;
+            if (showOnlyErrors || showOnlyWarnings)
+            {
+                return;
+            }
 
             ErrorUtilities.VerifyThrowArgumentNull(e.BuildEventContext, "BuildEventContext");
             if (IsVerbosityAtLeast(LoggerVerbosity.Detailed))
@@ -1647,7 +1659,7 @@ namespace Microsoft.Build.BackEnd.Logging
         /// </summary>
         /// <param name="scopeName">Task name or target name.</param>
         /// <param name="table">Table that has tasks or targets.</param>
-        internal new static MPPerformanceCounter GetPerformanceCounter(string scopeName, ref Dictionary<string, PerformanceCounter> table)
+        internal static new MPPerformanceCounter GetPerformanceCounter(string scopeName, ref Dictionary<string, PerformanceCounter> table)
         {
             // Lazily construct the performance counter table.
             if (table == null)
@@ -1780,7 +1792,6 @@ namespace Microsoft.Build.BackEnd.Logging
         private bool _forceNoAlign;
         private bool _showEventId;
         // According to the documentation for ENABLE_PROCESSED_OUTPUT tab width for the console is 8 characters
-        private const string consoleTab = "        ";
         #endregion
 
         #region Per-build Members

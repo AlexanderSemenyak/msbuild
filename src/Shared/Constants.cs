@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.IO;
@@ -70,6 +70,17 @@ namespace Microsoft.Build.Shared
         internal const string MSBuildDummyGlobalPropertyHeader = "MSBuildProjectInstance";
 
         /// <summary>
+        /// A property set during an implicit restore (/restore) or explicit restore (/t:restore) to ensure that the evaluations are not re-used during build
+        /// </summary>
+        internal const string MSBuildRestoreSessionId = nameof(MSBuildRestoreSessionId);
+
+        /// <summary>
+        /// A property set during an implicit restore (/restore) or explicit restore (/t:restore) to indicate that a restore is executing.
+        /// </summary>
+        internal const string MSBuildIsRestoring = nameof(MSBuildIsRestoring);
+
+
+        /// <summary>
         /// The most current VSGeneralAssemblyVersion known to this version of MSBuild.
         /// </summary>
         internal const string CurrentAssemblyVersion = "15.1.0.0";
@@ -78,7 +89,7 @@ namespace Microsoft.Build.Shared
         /// Current version of this MSBuild Engine assembly in the form, e.g, "12.0"
         /// </summary>
         internal const string CurrentProductVersion = "17.0";
-        
+
         /// <summary>
         /// Symbol used in ProjectReferenceTarget items to represent default targets
         /// </summary>
@@ -99,7 +110,7 @@ namespace Microsoft.Build.Shared
         /// with fallback to default targets if the ProjectReference item has no targets specified.
         /// </summary>
         internal const string ProjectReferenceTargetsOrDefaultTargetsMarker = ".projectReferenceTargetsOrDefaultTargets";
-        
+
         // One-time allocations to avoid implicit allocations for Split(), Trim().
         internal static readonly char[] SemicolonChar = { ';' };
         internal static readonly char[] SpaceChar = { ' ' };
@@ -188,6 +199,12 @@ namespace Microsoft.Build.Shared
         internal const string subType = "SubType";
         internal const string executableExtension = "ExecutableExtension";
         internal const string embedInteropTypes = "EmbedInteropTypes";
+        internal const string frameworkReferenceName = "FrameworkReferenceName";
+        internal const string assemblyName = "AssemblyName";
+        internal const string assemblyVersion = "AssemblyVersion";
+        internal const string publicKeyToken = "PublicKeyToken";
+        internal const string culture = "Culture";
+        internal const string withCulture = "WithCulture";
 
         /// <summary>
         /// The output path for a given item.

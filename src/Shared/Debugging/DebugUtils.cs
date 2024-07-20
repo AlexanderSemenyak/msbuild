@@ -1,12 +1,11 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-using Microsoft.Build.Framework;
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Security;
 using System.Text.RegularExpressions;
+using Microsoft.Build.Framework;
 
 #nullable disable
 
@@ -23,6 +22,13 @@ namespace Microsoft.Build.Shared.Debugging
 
         static DebugUtils()
         {
+            SetDebugPath();
+        }
+
+        // DebugUtils are initialized early on by the test runner - during preparing data for DataMemeberAttribute of some test,
+        //  for that reason it is not easily possible to inject the DebugPath in tests via env var (unless we want to run expensive exec style test).
+        internal static void SetDebugPath()
+        {
             string environmentDebugPath = FileUtilities.TrimAndStripAnyQuotes(Environment.GetEnvironmentVariable("MSBUILDDEBUGPATH"));
             string debugDirectory = environmentDebugPath;
 
@@ -38,7 +44,7 @@ namespace Microsoft.Build.Shared.Debugging
                 }
                 else
                 {
-                    debugDirectory = Path.Combine(Path.GetTempPath(), "MSBuild_Logs");
+                    debugDirectory = Path.Combine(FileUtilities.TempFileDirectory, "MSBuild_Logs");
                 }
 
                 // Out of proc nodes do not know the startup directory so set the environment variable for them.
@@ -96,7 +102,7 @@ namespace Microsoft.Build.Shared.Debugging
 
         public static readonly bool ShouldDebugCurrentProcess = CurrentProcessMatchesDebugName();
 
-        public static string DebugPath { get; }
+        public static string DebugPath { get; private set; }
 
         public static string FindNextAvailableDebugFilePath(string fileName)
         {

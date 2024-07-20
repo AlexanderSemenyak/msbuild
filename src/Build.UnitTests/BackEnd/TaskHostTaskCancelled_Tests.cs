@@ -1,9 +1,9 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using Microsoft.Build.BackEnd;
-using Xunit;
 using Shouldly;
+using Xunit;
 
 #nullable disable
 
@@ -15,7 +15,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
     public class TaskHostTaskCancelled_Tests
     {
         /// <summary>
-        /// Basic test of the constructor. 
+        /// Basic test of the constructor.
         /// </summary>
         [Fact]
         public void TestConstructor()
@@ -24,7 +24,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
         }
 
         /// <summary>
-        /// Basic test of serialization / deserialization. 
+        /// Basic test of serialization / deserialization.
         /// </summary>
         [Fact]
         public void TestTranslation()

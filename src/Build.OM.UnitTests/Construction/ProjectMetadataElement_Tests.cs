@@ -1,16 +1,15 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Xml;
 using Microsoft.Build.Construction;
-
-using InvalidProjectFileException = Microsoft.Build.Exceptions.InvalidProjectFileException;
-using Xunit;
-using System.Linq;
 using Microsoft.Build.Evaluation;
+using Xunit;
 using Xunit.Abstractions;
+using InvalidProjectFileException = Microsoft.Build.Exceptions.InvalidProjectFileException;
 
 #nullable disable
 
@@ -60,8 +59,7 @@ namespace Microsoft.Build.UnitTests.OM.Construction
                 ";
 
                 ProjectRootElement.Create(XmlReader.Create(new StringReader(content)));
-            }
-           );
+            });
         }
         /// <summary>
         /// Read metadatum with invalid name characters (but legal xml)
@@ -82,8 +80,7 @@ namespace Microsoft.Build.UnitTests.OM.Construction
                 ";
 
                 ProjectRootElement.Create(XmlReader.Create(new StringReader(content)));
-            }
-           );
+            });
         }
 
         [Theory]
@@ -106,8 +103,7 @@ namespace Microsoft.Build.UnitTests.OM.Construction
             Assert.Throws<InvalidProjectFileException>(() =>
             {
                 ProjectRootElement.Create(XmlReader.Create(new StringReader(content)));
-            }
-           );
+            });
         }
 
         /// <summary>
@@ -129,8 +125,7 @@ namespace Microsoft.Build.UnitTests.OM.Construction
                 ";
 
                 ProjectRootElement.Create(XmlReader.Create(new StringReader(content)));
-            }
-           );
+            });
         }
 
         [Theory]
@@ -153,8 +148,7 @@ namespace Microsoft.Build.UnitTests.OM.Construction
             Assert.Throws<InvalidProjectFileException>(() =>
             {
                 ProjectRootElement.Create(XmlReader.Create(new StringReader(content)));
-            }
-           );
+            });
         }
 
         /// <summary>
@@ -176,8 +170,7 @@ namespace Microsoft.Build.UnitTests.OM.Construction
                 ";
 
                 ProjectRootElement.Create(XmlReader.Create(new StringReader(content)));
-            }
-           );
+            });
         }
 
         /// <summary>
@@ -203,8 +196,7 @@ namespace Microsoft.Build.UnitTests.OM.Construction
             Assert.Throws<InvalidProjectFileException>(() =>
             {
                 ProjectRootElement.Create(XmlReader.Create(new StringReader(content)));
-            }
-           );
+            });
         }
 
         /// <summary>
@@ -257,8 +249,7 @@ namespace Microsoft.Build.UnitTests.OM.Construction
                 ProjectMetadataElement metadatum = GetMetadataXml();
 
                 metadatum.Name = "ImportGroup";
-            }
-           );
+            });
         }
 
         [Fact]
@@ -270,8 +261,7 @@ namespace Microsoft.Build.UnitTests.OM.Construction
             Assert.Throws<InvalidProjectFileException>(() =>
             {
                 metadatum.Name = "Include";
-            }
-           );
+            });
         }
 
 
@@ -284,8 +274,7 @@ namespace Microsoft.Build.UnitTests.OM.Construction
             Assert.Throws<InvalidProjectFileException>(() =>
             {
                 metadatum.ExpressedAsAttribute = true;
-            }
-           );
+            });
         }
 
         [Theory]
@@ -307,7 +296,8 @@ namespace Microsoft.Build.UnitTests.OM.Construction
                 ")]
         public void AddMetadataAsAttributeIllegalName(string project)
         {
-            ProjectRootElement projectElement = ProjectRootElement.Create(XmlReader.Create(new StringReader(project)));
+            using ProjectRootElementFromString projectRootElementFromString = new(project);
+            ProjectRootElement projectElement = projectRootElementFromString.Project;
             ProjectItemGroupElement itemGroup = (ProjectItemGroupElement)projectElement.AllChildren.FirstOrDefault(c => c is ProjectItemGroupElement);
 
             var items = Helpers.MakeList(itemGroup.Items);
@@ -333,7 +323,8 @@ namespace Microsoft.Build.UnitTests.OM.Construction
                     </Project>
                 ";
 
-            ProjectRootElement projectElement = ProjectRootElement.Create(XmlReader.Create(new StringReader(project)));
+            using ProjectRootElementFromString projectRootElementFromString = new(project);
+            ProjectRootElement projectElement = projectRootElementFromString.Project;
             ProjectItemDefinitionGroupElement itemDefinitionGroup = (ProjectItemDefinitionGroupElement)projectElement.AllChildren.FirstOrDefault(c => c is ProjectItemDefinitionGroupElement);
 
             var itemDefinitions = Helpers.MakeList(itemDefinitionGroup.ItemDefinitions);
@@ -371,8 +362,7 @@ namespace Microsoft.Build.UnitTests.OM.Construction
                 ProjectMetadataElement metadatum = GetMetadataXml();
 
                 metadatum.Value = null;
-            }
-           );
+            });
         }
         /// <summary>
         /// Read a metadatum containing an expression like @(..) but whose parent is an ItemDefinitionGroup
@@ -393,8 +383,7 @@ namespace Microsoft.Build.UnitTests.OM.Construction
                 ";
 
                 ProjectRootElement.Create(XmlReader.Create(new StringReader(content)));
-            }
-           );
+            });
         }
         /// <summary>
         /// Read a metadatum containing an expression like @(..) but whose parent is NOT an ItemDefinitionGroup
@@ -413,7 +402,7 @@ namespace Microsoft.Build.UnitTests.OM.Construction
                 ";
 
             // Should not throw
-            ProjectRootElement.Create(XmlReader.Create(new StringReader(content)));
+            using ProjectRootElementFromString projectRootElementFromString = new(content);
         }
 
         [Theory]
@@ -435,7 +424,8 @@ namespace Microsoft.Build.UnitTests.OM.Construction
                 ")]
         public void ReadMetadataAsAttribute(string project)
         {
-            ProjectRootElement projectElement = ProjectRootElement.Create(XmlReader.Create(new StringReader(project)));
+            using ProjectRootElementFromString projectRootElementFromString = new(project);
+            ProjectRootElement projectElement = projectRootElementFromString.Project;
             ProjectItemGroupElement itemGroup = (ProjectItemGroupElement)projectElement.AllChildren.FirstOrDefault(c => c is ProjectItemGroupElement);
 
             var items = Helpers.MakeList(itemGroup.Items);
@@ -459,7 +449,8 @@ namespace Microsoft.Build.UnitTests.OM.Construction
                         </ItemDefinitionGroup>
                     </Project>
                 ";
-            ProjectRootElement projectElement = ProjectRootElement.Create(XmlReader.Create(new StringReader(project)));
+            using ProjectRootElementFromString projectRootElementFromString = new(project);
+            ProjectRootElement projectElement = projectRootElementFromString.Project;
             ProjectItemDefinitionGroupElement itemDefinitionGroup = (ProjectItemDefinitionGroupElement)projectElement.AllChildren.FirstOrDefault(c => c is ProjectItemDefinitionGroupElement);
 
             var itemDefinitions = Helpers.MakeList(itemDefinitionGroup.ItemDefinitions);
@@ -492,7 +483,8 @@ namespace Microsoft.Build.UnitTests.OM.Construction
                 ")]
         public void ReadMetadataAsAttributeWithSpecialCharacters(string project)
         {
-            ProjectRootElement projectElement = ProjectRootElement.Create(XmlReader.Create(new StringReader(project)));
+            using ProjectRootElementFromString projectRootElementFromString = new(project);
+            ProjectRootElement projectElement = projectRootElementFromString.Project;
             ProjectItemGroupElement itemGroup = (ProjectItemGroupElement)projectElement.AllChildren.FirstOrDefault(c => c is ProjectItemGroupElement);
 
             var items = Helpers.MakeList(itemGroup.Items);
@@ -516,7 +508,8 @@ namespace Microsoft.Build.UnitTests.OM.Construction
                         </ItemDefinitionGroup>
                     </Project>
                 ";
-            ProjectRootElement projectElement = ProjectRootElement.Create(XmlReader.Create(new StringReader(project)));
+            using ProjectRootElementFromString projectRootElementFromString = new(project);
+            ProjectRootElement projectElement = projectRootElementFromString.Project;
             ProjectItemDefinitionGroupElement itemDefinitionGroup = (ProjectItemDefinitionGroupElement)projectElement.AllChildren.FirstOrDefault(c => c is ProjectItemDefinitionGroupElement);
 
             var itemDefinitions = Helpers.MakeList(itemDefinitionGroup.ItemDefinitions);
@@ -561,10 +554,12 @@ namespace Microsoft.Build.UnitTests.OM.Construction
                     </Project>")]
         public void UpdateMetadataValueAsAttribute(string projectContents, string updatedProject)
         {
-            ProjectRootElement projectElement = ProjectRootElement.Create(XmlReader.Create(
-                new StringReader(ObjectModelHelpers.CleanupFileContents(projectContents))),
+            using ProjectRootElementFromString projectRootElementFromString = new(
+                ObjectModelHelpers.CleanupFileContents(projectContents),
                 ProjectCollection.GlobalProjectCollection,
                 preserveFormatting: true);
+            ProjectRootElement projectElement = projectRootElementFromString.Project;
+
             ProjectItemGroupElement itemGroup = (ProjectItemGroupElement)projectElement.AllChildren.FirstOrDefault(c => c is ProjectItemGroupElement);
 
             var project = new Project(projectElement);
@@ -584,7 +579,7 @@ namespace Microsoft.Build.UnitTests.OM.Construction
             Assert.True(project.IsDirty);
             Assert.True(metadata.ExpressedAsAttribute);
 
-            StringWriter writer = new StringWriter();
+            using StringWriter writer = new StringWriter();
             project.Save(writer);
 
             string expected = @"<?xml version=""1.0"" encoding=""utf-16""?>" +
@@ -603,10 +598,11 @@ namespace Microsoft.Build.UnitTests.OM.Construction
                             <i1 m1=`v1` />
                         </ItemDefinitionGroup>
                     </Project>";
-            ProjectRootElement projectElement = ProjectRootElement.Create(XmlReader.Create(
-                    new StringReader(ObjectModelHelpers.CleanupFileContents(projectContents))),
+            using ProjectRootElementFromString projectRootElementFromString = new(
+                ObjectModelHelpers.CleanupFileContents(projectContents),
                 ProjectCollection.GlobalProjectCollection,
                 preserveFormatting: true);
+            ProjectRootElement projectElement = projectRootElementFromString.Project;
             ProjectItemDefinitionGroupElement itemDefinitionGroup = (ProjectItemDefinitionGroupElement)projectElement.AllChildren.FirstOrDefault(c => c is ProjectItemDefinitionGroupElement);
 
             var project = new Project(projectElement);
@@ -626,7 +622,7 @@ namespace Microsoft.Build.UnitTests.OM.Construction
             Assert.True(project.IsDirty);
             Assert.True(metadata.ExpressedAsAttribute);
 
-            StringWriter writer = new StringWriter();
+            using StringWriter writer = new StringWriter();
             project.Save(writer);
 
             string expected = @"<?xml version=""1.0"" encoding=""utf-16""?>" +
@@ -676,10 +672,11 @@ namespace Microsoft.Build.UnitTests.OM.Construction
                     </Project>")]
         public void UpdateMetadataValueAsAttributeWithSpecialCharacters(string projectContents, string updatedProject)
         {
-            ProjectRootElement projectElement = ProjectRootElement.Create(XmlReader.Create(
-                new StringReader(ObjectModelHelpers.CleanupFileContents(projectContents))),
-                ProjectCollection.GlobalProjectCollection,
-                preserveFormatting: true);
+            using ProjectRootElementFromString projectRootElementFromString = new(
+               ObjectModelHelpers.CleanupFileContents(projectContents),
+               ProjectCollection.GlobalProjectCollection,
+               preserveFormatting: true);
+            ProjectRootElement projectElement = projectRootElementFromString.Project;
             ProjectItemGroupElement itemGroup = (ProjectItemGroupElement)projectElement.AllChildren.FirstOrDefault(c => c is ProjectItemGroupElement);
 
             var project = new Project(projectElement);
@@ -699,7 +696,7 @@ namespace Microsoft.Build.UnitTests.OM.Construction
             Assert.True(project.IsDirty);
             Assert.True(metadata.ExpressedAsAttribute);
 
-            StringWriter writer = new StringWriter();
+            using StringWriter writer = new StringWriter();
             project.Save(writer);
 
             string expected = @"<?xml version=""1.0"" encoding=""utf-16""?>" +
@@ -718,10 +715,11 @@ namespace Microsoft.Build.UnitTests.OM.Construction
                             <i1 m1=`v1` />
                         </ItemDefinitionGroup>
                     </Project>";
-            ProjectRootElement projectElement = ProjectRootElement.Create(XmlReader.Create(
-                    new StringReader(ObjectModelHelpers.CleanupFileContents(projectContents))),
-                ProjectCollection.GlobalProjectCollection,
-                preserveFormatting: true);
+            using ProjectRootElementFromString projectRootElementFromString = new(
+               ObjectModelHelpers.CleanupFileContents(projectContents),
+               ProjectCollection.GlobalProjectCollection,
+               preserveFormatting: true);
+            ProjectRootElement projectElement = projectRootElementFromString.Project;
             ProjectItemDefinitionGroupElement itemDefinitionGroup = (ProjectItemDefinitionGroupElement)projectElement.AllChildren.FirstOrDefault(c => c is ProjectItemDefinitionGroupElement);
 
             var project = new Project(projectElement);
@@ -741,7 +739,7 @@ namespace Microsoft.Build.UnitTests.OM.Construction
             Assert.True(project.IsDirty);
             Assert.True(metadata.ExpressedAsAttribute);
 
-            StringWriter writer = new StringWriter();
+            using StringWriter writer = new StringWriter();
             project.Save(writer);
 
             string expected = @"<?xml version=""1.0"" encoding=""utf-16""?>" +
@@ -803,9 +801,11 @@ namespace Microsoft.Build.UnitTests.OM.Construction
                     </Project>")]
         public void ChangeMetadataToAttribute(string projectContents, string updatedProject)
         {
-            ProjectRootElement projectElement = ProjectRootElement.Create(XmlReader.Create(new StringReader(projectContents)),
-                ProjectCollection.GlobalProjectCollection,
-                preserveFormatting: true);
+            using ProjectRootElementFromString projectRootElementFromString = new(
+               projectContents,
+               ProjectCollection.GlobalProjectCollection,
+               preserveFormatting: true);
+            ProjectRootElement projectElement = projectRootElementFromString.Project;
             ProjectItemGroupElement itemGroup = (ProjectItemGroupElement)projectElement.AllChildren.FirstOrDefault(c => c is ProjectItemGroupElement);
 
             var project = new Project(projectElement);
@@ -825,7 +825,7 @@ namespace Microsoft.Build.UnitTests.OM.Construction
             Assert.True(project.IsDirty);
             Assert.True(metadata.ExpressedAsAttribute);
 
-            StringWriter writer = new StringWriter();
+            using StringWriter writer = new StringWriter();
             project.Save(writer);
 
             string expected = @"<?xml version=""1.0"" encoding=""utf-16""?>" +
@@ -864,9 +864,11 @@ namespace Microsoft.Build.UnitTests.OM.Construction
                     </Project>")]
         public void ChangeMetadataToAttributeOnItemDefinition(string projectContents, string updatedProject)
         {
-            ProjectRootElement projectElement = ProjectRootElement.Create(XmlReader.Create(new StringReader(projectContents)),
-                ProjectCollection.GlobalProjectCollection,
-                preserveFormatting: true);
+            using ProjectRootElementFromString projectRootElementFromString = new(
+               projectContents,
+               ProjectCollection.GlobalProjectCollection,
+               preserveFormatting: true);
+            ProjectRootElement projectElement = projectRootElementFromString.Project;
             ProjectItemDefinitionGroupElement itemDefinitionGroup = (ProjectItemDefinitionGroupElement)projectElement.AllChildren.FirstOrDefault(c => c is ProjectItemDefinitionGroupElement);
 
             var project = new Project(projectElement);
@@ -886,7 +888,7 @@ namespace Microsoft.Build.UnitTests.OM.Construction
             Assert.True(project.IsDirty);
             Assert.True(metadata.ExpressedAsAttribute);
 
-            StringWriter writer = new StringWriter();
+            using StringWriter writer = new StringWriter();
             project.Save(writer);
 
             string expected = @"<?xml version=""1.0"" encoding=""utf-16""?>" +
@@ -931,9 +933,11 @@ namespace Microsoft.Build.UnitTests.OM.Construction
                     </Project>")]
         public void ChangeAttributeToMetadata(string projectContents, string updatedProject)
         {
-            ProjectRootElement projectElement = ProjectRootElement.Create(XmlReader.Create(new StringReader(projectContents)),
-                ProjectCollection.GlobalProjectCollection,
-                preserveFormatting: true);
+            using ProjectRootElementFromString projectRootElementFromString = new(
+                 projectContents,
+                 ProjectCollection.GlobalProjectCollection,
+                 preserveFormatting: true);
+            ProjectRootElement projectElement = projectRootElementFromString.Project;
             ProjectItemGroupElement itemGroup = (ProjectItemGroupElement)projectElement.AllChildren.FirstOrDefault(c => c is ProjectItemGroupElement);
 
             var project = new Project(projectElement);
@@ -953,7 +957,7 @@ namespace Microsoft.Build.UnitTests.OM.Construction
             Assert.False(metadata.ExpressedAsAttribute);
             Assert.True(project.IsDirty);
 
-            StringWriter writer = new StringWriter();
+            using StringWriter writer = new StringWriter();
             project.Save(writer);
 
             string expected = @"<?xml version=""1.0"" encoding=""utf-16""?>" +
@@ -972,9 +976,11 @@ namespace Microsoft.Build.UnitTests.OM.Construction
                             <i1 m1='v1'/>
                         </ItemDefinitionGroup>
                     </Project>";
-            ProjectRootElement projectElement = ProjectRootElement.Create(XmlReader.Create(new StringReader(projectContents)),
-                ProjectCollection.GlobalProjectCollection,
-                preserveFormatting: true);
+            using ProjectRootElementFromString projectRootElementFromString = new(
+                 projectContents,
+                 ProjectCollection.GlobalProjectCollection,
+                 preserveFormatting: true);
+            ProjectRootElement projectElement = projectRootElementFromString.Project;
             ProjectItemDefinitionGroupElement itemDefinitionGroup = (ProjectItemDefinitionGroupElement)projectElement.AllChildren.FirstOrDefault(c => c is ProjectItemDefinitionGroupElement);
 
             var project = new Project(projectElement);
@@ -994,7 +1000,7 @@ namespace Microsoft.Build.UnitTests.OM.Construction
             Assert.False(metadata.ExpressedAsAttribute);
             Assert.True(project.IsDirty);
 
-            StringWriter writer = new StringWriter();
+            using StringWriter writer = new StringWriter();
             project.Save(writer);
 
             string expected = @"<?xml version=""1.0"" encoding=""utf-16""?>" +
@@ -1042,9 +1048,11 @@ namespace Microsoft.Build.UnitTests.OM.Construction
                     </Project>")]
         public void AddMetadataAsAttribute(string projectContents, string updatedProject)
         {
-            ProjectRootElement projectElement = ProjectRootElement.Create(XmlReader.Create(new StringReader(projectContents)),
-                ProjectCollection.GlobalProjectCollection,
-                preserveFormatting: true);
+            using ProjectRootElementFromString projectRootElementFromString = new(
+                 projectContents,
+                 ProjectCollection.GlobalProjectCollection,
+                 preserveFormatting: true);
+            ProjectRootElement projectElement = projectRootElementFromString.Project;
             ProjectItemGroupElement itemGroup = (ProjectItemGroupElement)projectElement.AllChildren.FirstOrDefault(c => c is ProjectItemGroupElement);
 
             var project = new Project(projectElement);
@@ -1061,7 +1069,7 @@ namespace Microsoft.Build.UnitTests.OM.Construction
             Assert.True(metadata.ExpressedAsAttribute);
             Assert.True(project.IsDirty);
 
-            StringWriter writer = new StringWriter();
+            using StringWriter writer = new StringWriter();
             project.Save(writer);
 
             string expected = @"<?xml version=""1.0"" encoding=""utf-16""?>" +
@@ -1080,9 +1088,11 @@ namespace Microsoft.Build.UnitTests.OM.Construction
                             <i1/>
                         </ItemDefinitionGroup>
                     </Project>";
-            ProjectRootElement projectElement = ProjectRootElement.Create(XmlReader.Create(new StringReader(projectContents)),
-                ProjectCollection.GlobalProjectCollection,
-                preserveFormatting: true);
+            using ProjectRootElementFromString projectRootElementFromString = new(
+                 projectContents,
+                 ProjectCollection.GlobalProjectCollection,
+                 preserveFormatting: true);
+            ProjectRootElement projectElement = projectRootElementFromString.Project;
             ProjectItemDefinitionGroupElement itemDefinitionGroup = (ProjectItemDefinitionGroupElement)projectElement.AllChildren.FirstOrDefault(c => c is ProjectItemDefinitionGroupElement);
 
             var project = new Project(projectElement);
@@ -1099,7 +1109,7 @@ namespace Microsoft.Build.UnitTests.OM.Construction
             Assert.True(metadata.ExpressedAsAttribute);
             Assert.True(project.IsDirty);
 
-            StringWriter writer = new StringWriter();
+            using StringWriter writer = new StringWriter();
             project.Save(writer);
 
             string expected = @"<?xml version=""1.0"" encoding=""utf-16""?>" +
@@ -1149,9 +1159,11 @@ namespace Microsoft.Build.UnitTests.OM.Construction
                     </Project>")]
         public void AddMetadataAsAttributeAndAsElement(string projectContents, string updatedProject)
         {
-            ProjectRootElement projectElement = ProjectRootElement.Create(XmlReader.Create(new StringReader(projectContents)),
+            using ProjectRootElementFromString projectRootElementFromString = new(
+                projectContents,
                 ProjectCollection.GlobalProjectCollection,
                 preserveFormatting: true);
+            ProjectRootElement projectElement = projectRootElementFromString.Project;
             ProjectItemGroupElement itemGroup = (ProjectItemGroupElement)projectElement.AllChildren.FirstOrDefault(c => c is ProjectItemGroupElement);
 
             var project = new Project(projectElement);
@@ -1175,7 +1187,7 @@ namespace Microsoft.Build.UnitTests.OM.Construction
             Assert.False(metadata.ExpressedAsAttribute);
             Assert.True(project.IsDirty);
 
-            StringWriter writer = new StringWriter();
+            using StringWriter writer = new StringWriter();
             project.Save(writer);
 
             string expected = @"<?xml version=""1.0"" encoding=""utf-16""?>" +
@@ -1194,9 +1206,11 @@ namespace Microsoft.Build.UnitTests.OM.Construction
                             <i1/>
                         </ItemDefinitionGroup>
                     </Project>";
-            ProjectRootElement projectElement = ProjectRootElement.Create(XmlReader.Create(new StringReader(projectContents)),
-                ProjectCollection.GlobalProjectCollection,
-                preserveFormatting: true);
+            using ProjectRootElementFromString projectRootElementFromString = new(
+               projectContents,
+               ProjectCollection.GlobalProjectCollection,
+               preserveFormatting: true);
+            ProjectRootElement projectElement = projectRootElementFromString.Project;
             ProjectItemDefinitionGroupElement itemDefinitionGroup = (ProjectItemDefinitionGroupElement)projectElement.AllChildren.FirstOrDefault(c => c is ProjectItemDefinitionGroupElement);
 
             var project = new Project(projectElement);
@@ -1220,7 +1234,7 @@ namespace Microsoft.Build.UnitTests.OM.Construction
             Assert.False(metadata.ExpressedAsAttribute);
             Assert.True(project.IsDirty);
 
-            StringWriter writer = new StringWriter();
+            using StringWriter writer = new StringWriter();
             project.Save(writer);
 
             string expected = @"<?xml version=""1.0"" encoding=""utf-16""?>" +
@@ -1252,14 +1266,15 @@ namespace Microsoft.Build.UnitTests.OM.Construction
                     </Project>
                 ";
 
-            ProjectRootElement project = ProjectRootElement.Create(XmlReader.Create(new StringReader(content)));
+            using ProjectRootElementFromString projectRootElementFromString = new(content);
+            ProjectRootElement project = projectRootElementFromString.Project;
             ProjectItemGroupElement itemGroup = (ProjectItemGroupElement)Helpers.GetFirst(project.Children);
             ProjectItemElement item = Helpers.GetFirst(itemGroup.Items);
             ProjectMetadataElement metadata = Helpers.GetFirst(item.Metadata);
             return metadata;
         }
 
-        void VerifyAssertLineByLine(string expected, string actual)
+        private void VerifyAssertLineByLine(string expected, string actual)
         {
             Helpers.VerifyAssertLineByLine(expected, actual, false, _testOutput);
         }

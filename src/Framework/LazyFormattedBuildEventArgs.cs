@@ -1,11 +1,9 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Globalization;
 using System.IO;
-
-#nullable disable
 
 namespace Microsoft.Build.Framework
 {
@@ -18,12 +16,12 @@ namespace Microsoft.Build.Framework
         /// <summary>
         /// Stores the message arguments.
         /// </summary>
-        private volatile object argumentsOrFormattedMessage;
+        private volatile object? argumentsOrFormattedMessage;
 
         /// <summary>
         /// Exposes the underlying arguments field to serializers.
         /// </summary>
-        internal object[] RawArguments
+        internal object[]? RawArguments
         {
             get => (argumentsOrFormattedMessage is object[] arguments) ? arguments : null;
         }
@@ -31,7 +29,7 @@ namespace Microsoft.Build.Framework
         /// <summary>
         /// Exposes the formatted message string to serializers.
         /// </summary>
-        private protected override string FormattedMessage
+        private protected override string? FormattedMessage
         {
             get => (argumentsOrFormattedMessage is string formattedMessage) ? formattedMessage : base.FormattedMessage;
         }
@@ -42,12 +40,10 @@ namespace Microsoft.Build.Framework
         /// <param name="message">text message.</param>
         /// <param name="helpKeyword">help keyword.</param>
         /// <param name="senderName">name of event sender.</param>
-        public LazyFormattedBuildEventArgs
-        (
-            string message,
-            string helpKeyword,
-            string senderName
-        )
+        public LazyFormattedBuildEventArgs(
+            string? message,
+            string? helpKeyword,
+            string? senderName)
             : this(message, helpKeyword, senderName, DateTime.Now, null)
         {
         }
@@ -60,14 +56,12 @@ namespace Microsoft.Build.Framework
         /// <param name="senderName">name of event sender.</param>
         /// <param name="eventTimestamp">Timestamp when event was created.</param>
         /// <param name="messageArgs">Message arguments.</param>
-        public LazyFormattedBuildEventArgs
-        (
-            string message,
-            string helpKeyword,
-            string senderName,
+        public LazyFormattedBuildEventArgs(
+            string? message,
+            string? helpKeyword,
+            string? senderName,
             DateTime eventTimestamp,
-            params object[] messageArgs
-        )
+            params object[]? messageArgs)
             : base(message, helpKeyword, senderName, eventTimestamp)
         {
             argumentsOrFormattedMessage = messageArgs;
@@ -84,17 +78,17 @@ namespace Microsoft.Build.Framework
         /// <summary>
         /// Gets the formatted message.
         /// </summary>
-        public override string Message
+        public override string? Message
         {
             get
             {
-                object argsOrMessage = argumentsOrFormattedMessage;
+                object? argsOrMessage = argumentsOrFormattedMessage;
                 if (argsOrMessage is string formattedMessage)
                 {
                     return formattedMessage;
                 }
 
-                if (argsOrMessage is object[] arguments && arguments.Length > 0)
+                if (argsOrMessage is object[] arguments && arguments.Length > 0 && base.Message is not null)
                 {
                     formattedMessage = FormatString(base.Message, arguments);
                     argumentsOrFormattedMessage = formattedMessage;
@@ -111,7 +105,7 @@ namespace Microsoft.Build.Framework
         /// <param name="writer">Binary writer which is attached to the stream the event will be serialized into.</param>
         internal override void WriteToStream(BinaryWriter writer)
         {
-            object argsOrMessage = argumentsOrFormattedMessage;
+            object? argsOrMessage = argumentsOrFormattedMessage;
             if (argsOrMessage is object[] arguments && arguments.Length > 0)
             {
                 base.WriteToStreamWithExplicitMessage(writer, base.Message);
@@ -121,7 +115,8 @@ namespace Microsoft.Build.Framework
                 {
                     // Arguments may be ints, etc, so explicitly convert
                     // Convert.ToString returns String.Empty when it cannot convert, rather than throwing
-                    writer.Write(Convert.ToString(argument, CultureInfo.CurrentCulture));
+                    // It returns null if the input is null.
+                    writer.Write(Convert.ToString(argument, CultureInfo.CurrentCulture) ?? "");
                 }
             }
             else
@@ -142,7 +137,7 @@ namespace Microsoft.Build.Framework
 
             if (version > 20)
             {
-                string[] messageArgs = null;
+                string[]? messageArgs = null;
                 int numArguments = reader.ReadInt32();
 
                 if (numArguments >= 0)
@@ -161,7 +156,7 @@ namespace Microsoft.Build.Framework
 
         /// <summary>
         /// Formats the given string using the variable arguments passed in.
-        /// 
+        ///
         /// PERF WARNING: calling a method that takes a variable number of arguments is expensive, because memory is allocated for
         /// the array of arguments -- do not call this method repeatedly in performance-critical scenarios
         /// </summary>
@@ -178,12 +173,12 @@ namespace Microsoft.Build.Framework
             if ((args?.Length > 0))
             {
 #if DEBUG
-                // If you accidentally pass some random type in that can't be converted to a string, 
+                // If you accidentally pass some random type in that can't be converted to a string,
                 // FormatResourceString calls ToString() which returns the full name of the type!
                 foreach (object param in args)
                 {
                     // Check against a list of types that we know have
-                    // overridden ToString() usefully. If you want to pass 
+                    // overridden ToString() usefully. If you want to pass
                     // another one, add it here.
                     if (param != null && param.ToString() == param.GetType().FullName)
                     {
@@ -203,7 +198,7 @@ namespace Microsoft.Build.Framework
                     // We don't have resources in this assembly, and we generally log stack for task failures so they can be fixed by the owner
                     // However, we don't want to crash the logger and stop the build.
                     // Error will look like this (it's OK to not localize subcategory). It's not too bad, although there's no file.
-                    // 
+                    //
                     //       Task "Crash"
                     //          (16,14):  error : "This message logged from a task {1} has too few formatting parameters."
                     //             at System.Text.StringBuilder.AppendFormat(IFormatProvider provider, String format, Object[] args)

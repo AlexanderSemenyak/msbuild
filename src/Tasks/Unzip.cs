@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.IO;
@@ -19,7 +19,7 @@ namespace Microsoft.Build.Tasks
     /// <summary>
     /// Represents a task that can extract a .zip archive.
     /// </summary>
-    public sealed class Unzip : TaskExtension, ICancelableTask
+    public sealed class Unzip : TaskExtension, ICancelableTask, IIncrementalTask
     {
         // We pick a value that is the largest multiple of 4096 that is still smaller than the large object heap threshold (85K).
         // The CopyTo/CopyToAsync buffer is short-lived and is likely to be collected at Gen0, and it offers a significant
@@ -73,6 +73,8 @@ namespace Microsoft.Build.Tasks
         /// </summary>
         public string Exclude { get; set; }
 
+        public bool FailIfNotIncremental { get; set; }
+
         /// <inheritdoc cref="ICancelableTask.Cancel"/>
         public void Cancel()
         {
@@ -114,6 +116,7 @@ namespace Microsoft.Build.Tasks
                         {
                             using (FileStream stream = new FileStream(sourceFile.ItemSpec, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: 0x1000, useAsync: false))
                             {
+#pragma warning disable CA2000 // Dispose objects before losing scope because ZipArchive will dispose the stream when it is disposed.
                                 using (ZipArchive zipArchive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: false))
                                 {
                                     try
@@ -127,6 +130,7 @@ namespace Microsoft.Build.Tasks
                                         return false;
                                     }
                                 }
+#pragma warning restore CA2000 // Dispose objects before losing scope
                             }
                         }
                         catch (OperationCanceledException)
@@ -156,6 +160,8 @@ namespace Microsoft.Build.Tasks
         /// <param name="destinationDirectory">The <see cref="DirectoryInfo"/> to extract files to.</param>
         private void Extract(ZipArchive sourceArchive, DirectoryInfo destinationDirectory)
         {
+            string fullDestinationDirectoryPath = Path.GetFullPath(FileUtilities.EnsureTrailingSlash(destinationDirectory.FullName));
+
             foreach (ZipArchiveEntry zipArchiveEntry in sourceArchive.Entries.TakeWhile(i => !_cancellationToken.IsCancellationRequested))
             {
                 if (ShouldSkipEntry(zipArchiveEntry))
@@ -164,7 +170,10 @@ namespace Microsoft.Build.Tasks
                     continue;
                 }
 
-                FileInfo destinationPath = new FileInfo(Path.Combine(destinationDirectory.FullName, zipArchiveEntry.FullName));
+                string fullDestinationPath = Path.GetFullPath(Path.Combine(destinationDirectory.FullName, zipArchiveEntry.FullName));
+                ErrorUtilities.VerifyThrowInvalidOperation(fullDestinationPath.StartsWith(fullDestinationDirectoryPath, FileUtilities.PathComparison), "Unzip.ZipSlipExploit", fullDestinationPath);
+
+                FileInfo destinationPath = new(fullDestinationPath);
 
                 // Zip archives can have directory entries listed explicitly.
                 // If this entry is a directory we should create it and move to the next entry.
@@ -188,6 +197,11 @@ namespace Microsoft.Build.Tasks
                     Log.LogMessageFromResources(MessageImportance.Low, "Unzip.DidNotUnzipBecauseOfFileMatch", zipArchiveEntry.FullName, destinationPath.FullName, nameof(SkipUnchangedFiles), "true");
                     continue;
                 }
+                else if (FailIfNotIncremental)
+                {
+                    Log.LogErrorFromResources("Unzip.FileComment", zipArchiveEntry.FullName, destinationPath.FullName);
+                    continue;
+                }
 
                 try
                 {
@@ -207,7 +221,8 @@ namespace Microsoft.Build.Tasks
                     }
                     catch (Exception e)
                     {
-                        Log.LogErrorWithCodeFromResources("Unzip.ErrorCouldNotMakeFileWriteable", zipArchiveEntry.FullName, destinationPath.FullName, e.Message);
+                        string lockedFileMessage = LockCheck.GetLockedFileMessage(destinationPath.FullName);
+                        Log.LogErrorWithCodeFromResources("Unzip.ErrorCouldNotMakeFileWriteable", zipArchiveEntry.FullName, destinationPath.FullName, e.Message, lockedFileMessage);
                         continue;
                     }
                 }

@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 
@@ -13,7 +13,7 @@ namespace Microsoft.Build.Tasks
     public sealed partial class ResolveComReference
     {
         /// <summary>
-        /// Defines the "AxImp" MSBuild task, which enables using AxImp.exe 
+        /// Defines the "AxImp" MSBuild task, which enables using AxImp.exe
         /// to generate Windows Forms wrappers for ActiveX controls.
         /// </summary>
         internal class AxImp : AxTlbBaseTask

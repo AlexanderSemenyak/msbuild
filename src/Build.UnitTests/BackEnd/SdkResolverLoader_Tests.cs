@@ -1,6 +1,8 @@
-﻿using System;
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
+using System;
 using System.Collections.Generic;
-using Shouldly;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -11,6 +13,7 @@ using Microsoft.Build.Exceptions;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Shared;
 using Microsoft.Build.UnitTests;
+using Shouldly;
 using Xunit;
 using Xunit.Abstractions;
 using Exception = System.Exception;
@@ -27,7 +30,6 @@ namespace Microsoft.Build.Engine.UnitTests.BackEnd
     {
         private readonly ITestOutputHelper _output;
         private readonly MockLogger _logger;
-        private readonly LoggingContext _loggingContext;
 
         public SdkResolverLoader_Tests(ITestOutputHelper output)
         {
@@ -35,10 +37,6 @@ namespace Microsoft.Build.Engine.UnitTests.BackEnd
             _logger = new MockLogger(output);
             ILoggingService loggingService = LoggingService.CreateLoggingService(LoggerMode.Synchronous, 1);
             loggingService.RegisterLogger(_logger);
-
-            _loggingContext = new MockLoggingContext(
-                loggingService,
-                new BuildEventContext(0, 0, BuildEventContext.InvalidProjectContextId, 0, 0));
         }
 
         [Fact]
@@ -46,10 +44,10 @@ namespace Microsoft.Build.Engine.UnitTests.BackEnd
         {
             var loader = new SdkResolverLoader();
 
-            var resolvers = loader.LoadAllResolvers(_loggingContext, new MockElementLocation("file"));
+            var resolvers = loader.LoadAllResolvers(new MockElementLocation("file"));
 
-            resolvers.Select(i => i.GetType().FullName).ShouldBe(new [] { typeof(DefaultSdkResolver).FullName });
-            
+            resolvers.Select(i => i.GetType().FullName).ShouldBe(new[] { typeof(DefaultSdkResolver).FullName });
+
             _logger.ErrorCount.ShouldBe(0);
             _logger.WarningCount.ShouldBe(0);
         }
@@ -128,7 +126,7 @@ namespace Microsoft.Build.Engine.UnitTests.BackEnd
         {
             SdkResolverLoader sdkResolverLoader = new MockSdkResolverLoader
             {
-                LoadResolverAssemblyFunc = (resolverPath, loggingContext, location) => typeof(SdkResolverLoader_Tests).GetTypeInfo().Assembly,
+                LoadResolverAssemblyFunc = (resolverPath) => typeof(SdkResolverLoader_Tests).GetTypeInfo().Assembly,
                 FindPotentialSdkResolversFunc = (rootFolder, loc) => new List<string>
                 {
                     "myresolver.dll"
@@ -138,7 +136,7 @@ namespace Microsoft.Build.Engine.UnitTests.BackEnd
 
             InvalidProjectFileException exception = Should.Throw<InvalidProjectFileException>(() =>
             {
-                sdkResolverLoader.LoadAllResolvers(_loggingContext, ElementLocation.EmptyLocation);
+                sdkResolverLoader.LoadAllResolvers(ElementLocation.EmptyLocation);
             });
 
             exception.Message.ShouldBe($"The SDK resolver type \"{nameof(MockSdkResolverThatDoesNotLoad)}\" failed to load. A8BB8B3131D3475D881ACD3AF8D75BD6");
@@ -160,7 +158,7 @@ namespace Microsoft.Build.Engine.UnitTests.BackEnd
         {
             SdkResolverLoader sdkResolverLoader = new MockSdkResolverLoader
             {
-                LoadResolverAssemblyFunc = (resolverPath, loggingContext, location) => typeof(SdkResolverLoader_Tests).GetTypeInfo().Assembly,
+                LoadResolverAssemblyFunc = (resolverPath) => typeof(SdkResolverLoader_Tests).GetTypeInfo().Assembly,
                 FindPotentialSdkResolversFunc = (rootFolder, loc) => new List<string>
                 {
                     "myresolver.dll"
@@ -170,7 +168,7 @@ namespace Microsoft.Build.Engine.UnitTests.BackEnd
 
             InvalidProjectFileException exception = Should.Throw<InvalidProjectFileException>(() =>
             {
-                sdkResolverLoader.LoadAllResolvers(_loggingContext, ElementLocation.EmptyLocation);
+                sdkResolverLoader.LoadAllResolvers(ElementLocation.EmptyLocation);
             });
 
             exception.Message.ShouldStartWith($"The SDK resolver type \"{nameof(MockSdkResolverNoPublicConstructor)}\" failed to load.");
@@ -192,7 +190,7 @@ namespace Microsoft.Build.Engine.UnitTests.BackEnd
 
             SdkResolverLoader sdkResolverLoader = new MockSdkResolverLoader
             {
-                LoadResolverAssemblyFunc = (resolverPath, loggingContext, location) => throw new Exception(expectedMessage),
+                LoadResolverAssemblyFunc = (resolverPath) => throw new Exception(expectedMessage),
                 FindPotentialSdkResolversFunc = (rootFolder, loc) => new List<string>
                 {
                     assemblyPath,
@@ -201,7 +199,7 @@ namespace Microsoft.Build.Engine.UnitTests.BackEnd
 
             InvalidProjectFileException exception = Should.Throw<InvalidProjectFileException>(() =>
             {
-                sdkResolverLoader.LoadAllResolvers(_loggingContext, ElementLocation.EmptyLocation);
+                sdkResolverLoader.LoadAllResolvers(ElementLocation.EmptyLocation);
             });
 
             exception.Message.ShouldBe($"The SDK resolver assembly \"{assemblyPath}\" could not be loaded. {expectedMessage}");
@@ -342,11 +340,12 @@ namespace Microsoft.Build.Engine.UnitTests.BackEnd
                     Environment.SetEnvironmentVariable("MSBUILDINCLUDEDEFAULTSDKRESOLVER", "false");
                     SdkResolverLoader loader = new MockSdkResolverLoader()
                     {
-                        LoadResolversAction = (resolverPath, loggingContext, location, resolvers) => {
+                        LoadResolversAction = (resolverPath, location, resolvers) =>
+                        {
                             resolvers.Add(new MockSdkResolverWithAssemblyPath(resolverPath));
                         }
                     };
-                    IList<SdkResolverBase> resolvers = loader.LoadAllResolvers(_loggingContext, new MockElementLocation("file"));
+                    IReadOnlyList<SdkResolverBase> resolvers = loader.LoadAllResolvers(new MockElementLocation("file"));
 
                     resolvers.Count.ShouldBe(0);
                 }
@@ -386,7 +385,7 @@ namespace Microsoft.Build.Engine.UnitTests.BackEnd
                     Environment.SetEnvironmentVariable("MSBUILDADDITIONALSDKRESOLVERSFOLDER", additionalRoot);
 
                     SdkResolverLoader loader = new SdkResolverLoader();
-                    IList<string> resolvers = loader.FindPotentialSdkResolvers(testRoot, new MockElementLocation("file"));
+                    IReadOnlyList<string> resolvers = loader.FindPotentialSdkResolvers(testRoot, new MockElementLocation("file"));
 
                     resolvers.ShouldBeSameIgnoringOrder(new[] { resolver1Path, resolver2Path, resolver3Path });
                 }
@@ -397,7 +396,7 @@ namespace Microsoft.Build.Engine.UnitTests.BackEnd
             }
         }
 
-        private class MockSdkResolverThatDoesNotLoad : SdkResolverBase
+        private sealed class MockSdkResolverThatDoesNotLoad : SdkResolverBase
         {
             public const string ExpectedMessage = "A8BB8B3131D3475D881ACD3AF8D75BD6";
 
@@ -416,7 +415,7 @@ namespace Microsoft.Build.Engine.UnitTests.BackEnd
             }
         }
 
-        private class MockSdkResolverNoPublicConstructor : SdkResolverBase
+        private sealed class MockSdkResolverNoPublicConstructor : SdkResolverBase
         {
             private MockSdkResolverNoPublicConstructor()
             {
@@ -432,7 +431,7 @@ namespace Microsoft.Build.Engine.UnitTests.BackEnd
             }
         }
 
-        private class MockSdkResolverWithAssemblyPath : SdkResolverBase
+        private sealed class MockSdkResolverWithAssemblyPath : SdkResolverBase
         {
             public string AssemblyPath;
 
@@ -451,24 +450,24 @@ namespace Microsoft.Build.Engine.UnitTests.BackEnd
             }
         }
 
-        private class MockSdkResolverLoader : SdkResolverLoader
+        private sealed class MockSdkResolverLoader : SdkResolverLoader
         {
-            public Func<string, LoggingContext, ElementLocation, Assembly> LoadResolverAssemblyFunc { get; set; }
+            public Func<string, Assembly> LoadResolverAssemblyFunc { get; set; }
 
-            public Func<string, ElementLocation, IList<string>> FindPotentialSdkResolversFunc { get; set; }
+            public Func<string, ElementLocation, IReadOnlyList<string>> FindPotentialSdkResolversFunc { get; set; }
 
             public Func<Assembly, IEnumerable<Type>> GetResolverTypesFunc { get; set; }
 
-            public Action<string, LoggingContext, ElementLocation, List<SdkResolver>> LoadResolversAction { get; set; }
+            public Action<string, ElementLocation, List<SdkResolver>> LoadResolversAction { get; set; }
 
-            protected override Assembly LoadResolverAssembly(string resolverPath, LoggingContext loggingContext, ElementLocation location)
+            protected override Assembly LoadResolverAssembly(string resolverPath)
             {
                 if (LoadResolverAssemblyFunc != null)
                 {
-                    return LoadResolverAssemblyFunc(resolverPath, loggingContext, location);
+                    return LoadResolverAssemblyFunc(resolverPath);
                 }
 
-                return base.LoadResolverAssembly(resolverPath, loggingContext, location);
+                return base.LoadResolverAssembly(resolverPath);
             }
 
             protected override IEnumerable<Type> GetResolverTypes(Assembly assembly)
@@ -481,7 +480,7 @@ namespace Microsoft.Build.Engine.UnitTests.BackEnd
                 return base.GetResolverTypes(assembly);
             }
 
-            internal override IList<string> FindPotentialSdkResolvers(string rootFolder, ElementLocation location)
+            internal override IReadOnlyList<string> FindPotentialSdkResolvers(string rootFolder, ElementLocation location)
             {
                 if (FindPotentialSdkResolversFunc != null)
                 {
@@ -491,14 +490,14 @@ namespace Microsoft.Build.Engine.UnitTests.BackEnd
                 return base.FindPotentialSdkResolvers(rootFolder, location);
             }
 
-            protected override void LoadResolvers(string resolverPath, LoggingContext loggingContext, ElementLocation location, List<SdkResolver> resolvers)
+            protected override void LoadResolvers(string resolverPath, ElementLocation location, List<SdkResolver> resolvers)
             {
                 if (LoadResolversAction != null)
                 {
-                    LoadResolversAction(resolverPath, loggingContext, location, resolvers);
+                    LoadResolversAction(resolverPath, location, resolvers);
                     return;
                 }
-                base.LoadResolvers(resolverPath, loggingContext, location, resolvers);
+                base.LoadResolvers(resolverPath, location, resolvers);
             }
         }
     }

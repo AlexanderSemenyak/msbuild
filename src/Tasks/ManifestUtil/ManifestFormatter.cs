@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Globalization;
@@ -16,7 +16,7 @@ namespace Microsoft.Build.Tasks.Deployment.ManifestUtilities
         public static Stream Format(Stream input)
         {
             int t1 = Environment.TickCount;
-
+#pragma warning disable CA2000 // Dispose objects before losing scope - caller needs underlying stream
             var r = new XmlTextReader(input)
             {
                 DtdProcessing = DtdProcessing.Ignore,
@@ -31,6 +31,7 @@ namespace Microsoft.Build.Tasks.Deployment.ManifestUtilities
                 Indentation = 2
             };
             w.WriteStartDocument();
+#pragma warning restore CA2000 // Dispose objects before losing scope
 
             while (r.Read())
             {

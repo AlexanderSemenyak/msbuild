@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Collections.Generic;
@@ -10,6 +10,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks.Dataflow;
 using Microsoft.Build.BackEnd.Logging;
+using Microsoft.Build.Experimental.BuildCheck.Infrastructure;
 using Microsoft.Build.Execution;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Shared;
@@ -120,14 +121,12 @@ namespace Microsoft.Build.BackEnd
         internal BuildRequestEngine()
         {
             _debugDumpState = Traits.Instance.DebugScheduler;
-            _debugDumpPath = ChangeWaves.AreFeaturesEnabled(ChangeWaves.Wave17_0)
-                ? DebugUtils.DebugPath
-                : Environment.GetEnvironmentVariable("MSBUILDDEBUGPATH");
+            _debugDumpPath = DebugUtils.DebugPath;
             _debugForceCaching = Environment.GetEnvironmentVariable("MSBUILDDEBUGFORCECACHING") == "1";
 
             if (String.IsNullOrEmpty(_debugDumpPath))
             {
-                _debugDumpPath = Path.GetTempPath();
+                _debugDumpPath = FileUtilities.TempFileDirectory;
             }
 
             _status = BuildRequestEngineStatus.Uninitialized;
@@ -283,6 +282,9 @@ namespace Microsoft.Build.BackEnd
                         TraceEngine("CFB: Rethrowing shutdown exceptions");
                         throw new AggregateException(deactivateExceptions);
                     }
+
+                    var buildCheckManager = (_componentHost.GetComponent(BuildComponentType.BuildCheckManagerProvider) as IBuildCheckManagerProvider)!.Instance;
+                    buildCheckManager.FinalizeProcessing(_nodeLoggingContext);
                 },
                 isLastTask: true);
 
@@ -811,6 +813,7 @@ namespace Microsoft.Build.BackEnd
                     // own cache.
                     completedEntry.Result.DefaultTargets = configuration.ProjectDefaultTargets;
                     completedEntry.Result.InitialTargets = configuration.ProjectInitialTargets;
+                    completedEntry.Result.ProjectTargets = configuration.ProjectTargets;
                 }
 
                 TraceEngine("ERS: Request is now {0}({1}) (nr {2}) has had its builder cleaned up.", completedEntry.Request.GlobalRequestId, completedEntry.Request.ConfigurationId, completedEntry.Request.NodeRequestId);
@@ -1123,7 +1126,7 @@ namespace Microsoft.Build.BackEnd
             lock (issuingEntry.GlobalLock)
             {
                 var existingResultsToReport = new List<BuildResult>();
-                var unresolvedConfigurationsAdded = new HashSet<NGen<int>>();
+                var unresolvedConfigurationsAdded = new HashSet<int>();
 
                 foreach (FullyQualifiedBuildRequest request in newRequests)
                 {
@@ -1323,9 +1326,9 @@ namespace Microsoft.Build.BackEnd
         /// <param name="config">The configuration to be mapped.</param>
         private void IssueConfigurationRequest(BuildRequestConfiguration config)
         {
-            ErrorUtilities.VerifyThrowArgument(config.WasGeneratedByNode, "InvalidConfigurationId");
+            ErrorUtilities.VerifyThrow(config.WasGeneratedByNode, "InvalidConfigurationId");
             ErrorUtilities.VerifyThrowArgumentNull(config, nameof(config));
-            ErrorUtilities.VerifyThrowInvalidOperation(_unresolvedConfigurations.HasConfiguration(config.ConfigurationId), "NoUnresolvedConfiguration");
+            ErrorUtilities.VerifyThrow(_unresolvedConfigurations.HasConfiguration(config.ConfigurationId), "NoUnresolvedConfiguration");
             TraceEngine("Issuing configuration request for node config {0}", config.ConfigurationId);
             RaiseNewConfigurationRequest(config);
         }

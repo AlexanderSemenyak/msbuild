@@ -1,12 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-using System.IO;
 using System;
+using System.IO;
 using System.Linq;
 using Microsoft.Build.Framework;
-using Microsoft.Build.Utilities;
 using Microsoft.Build.Shared;
+using Microsoft.Build.Utilities;
 using Xunit;
 
 #nullable disable
@@ -16,6 +16,7 @@ namespace Microsoft.Build.UnitTests
 #if FEATURE_CODETASKFACTORY
 
     using System.CodeDom.Compiler;
+    using Microsoft.Build.Tasks.UnitTests;
 
     public sealed class CodeTaskFactoryTests
     {
@@ -199,7 +200,6 @@ namespace Microsoft.Build.UnitTests
         /// Verify we get an error if a the languages attribute is set but it is empty
         /// </summary>
         [Fact]
-        [Trait("Category", "mono-osx-failing")]
         public void EmptyLanguage()
         {
             string projectFileContents = @"
@@ -228,7 +228,6 @@ namespace Microsoft.Build.UnitTests
         /// Verify we get an error if a the Type attribute is set but it is empty
         /// </summary>
         [Fact]
-        [Trait("Category", "mono-osx-failing")]
         public void EmptyType()
         {
             string projectFileContents = @"
@@ -257,7 +256,6 @@ namespace Microsoft.Build.UnitTests
         /// Verify we get an error if a the source attribute is set but it is empty
         /// </summary>
         [Fact]
-        [Trait("Category", "mono-osx-failing")]
         public void EmptySource()
         {
             string projectFileContents = @"
@@ -286,7 +284,6 @@ namespace Microsoft.Build.UnitTests
         /// Verify we get an error if a reference is missing an include attribute is set but it is empty
         /// </summary>
         [Fact]
-        [Trait("Category", "mono-osx-failing")]
         public void EmptyReferenceInclude()
         {
             string projectFileContents = @"
@@ -316,7 +313,6 @@ namespace Microsoft.Build.UnitTests
         /// Verify we get an error if a Using statement is missing an namespace attribute is set but it is empty
         /// </summary>
         [Fact]
-        [Trait("Category", "mono-osx-failing")]
         public void EmptyUsingNamespace()
         {
             string projectFileContents = @"
@@ -374,7 +370,6 @@ namespace Microsoft.Build.UnitTests
         /// Verify we get an error a reference has strange chars
         /// </summary>
         [Fact]
-        [Trait("Category", "mono-osx-failing")]
         public void ReferenceInvalidChars()
         {
             string projectFileContents = @"
@@ -404,7 +399,6 @@ namespace Microsoft.Build.UnitTests
         /// Verify we get an error if a using has invalid chars
         /// </summary>
         [Fact]
-        [Trait("Category", "mono-osx-failing")]
         public void UsingInvalidChars()
         {
             string projectFileContents = @"
@@ -462,7 +456,6 @@ namespace Microsoft.Build.UnitTests
         /// Verify we get an error if a the code element is missing
         /// </summary>
         [Fact]
-        [Trait("Category", "mono-osx-failing")]
         public void MissingCodeElement()
         {
             string projectFileContents = @"
@@ -683,7 +676,6 @@ namespace Microsoft.Build.UnitTests
         /// jscript .net works
         /// </summary>
         [Fact]
-        [Trait("Category", "mono-osx-failing")]
         public void MethodImplementationJScriptNet()
         {
             if (!CodeDomProvider.IsDefinedLanguage("js"))
@@ -879,7 +871,6 @@ namespace Microsoft.Build.UnitTests
         /// Verify we get an error if a the Type attribute is set but it is empty
         /// </summary>
         [Fact]
-        [Trait("Category", "mono-osx-failing")]
         public void MultipleCodeElements()
         {
             string projectFileContents = @"
@@ -911,7 +902,6 @@ namespace Microsoft.Build.UnitTests
         /// Verify we get an error if a the Type attribute is set but it is empty
         /// </summary>
         [Fact]
-        [Trait("Category", "mono-osx-failing")]
         public void ReferenceNestedInCode()
         {
             string projectFileContents = @"
@@ -945,7 +935,6 @@ namespace Microsoft.Build.UnitTests
         /// Verify we get an error if there is an unknown element in the task tag
         /// </summary>
         [Fact]
-        [Trait("Category", "mono-osx-failing")]
         public void UnknownElementInTask()
         {
             string projectFileContents = @"
@@ -1057,7 +1046,6 @@ namespace Microsoft.Build.UnitTests
         /// See https://github.com/dotnet/msbuild/issues/328 for details.
         /// </summary>
         [Fact]
-        [Trait("Category", "mono-osx-failing")]
         public void BuildTaskSimpleCodeFactoryTempDirectoryDoesntExist()
         {
             string projectFileContents = @"
@@ -1132,6 +1120,81 @@ namespace Microsoft.Build.UnitTests
 
             MockLogger mockLogger = Helpers.BuildProjectWithNewOMExpectSuccess(projectFileContents);
             mockLogger.AssertLogContains("Hello, World!");
+        }
+
+        [Fact]
+        public void EmbedsGeneratedFromSourceFileInBinlog()
+        {
+            string taskName = "HelloTask";
+
+            string sourceContent = $$"""
+                namespace InlineTask
+                {
+                    using Microsoft.Build.Utilities;
+
+                    public class {{taskName}} : Task
+                    {
+                        public override bool Execute()
+                        {
+                            Log.LogMessage("Hello, world!");
+                            return !Log.HasLoggedErrors;
+                        }
+                    }
+                }
+                """;
+
+            CodeTaskFactoryEmbeddedFileInBinlogTestHelper.BuildFromSourceAndCheckForEmbeddedFileInBinlog(
+                FactoryType.CodeTaskFactory, taskName, sourceContent, true);
+        }
+
+        [Fact]
+        public void EmbedsGeneratedFromSourceFileInBinlogWhenFailsToCompile()
+        {
+            string taskName = "HelloTask";
+
+            string sourceContent =  $$"""
+                namespace InlineTask
+                {
+                    using Microsoft.Build.Utilities;
+
+                    public class {{taskName}} : Task
+                    {
+                """;
+
+            CodeTaskFactoryEmbeddedFileInBinlogTestHelper.BuildFromSourceAndCheckForEmbeddedFileInBinlog(
+                FactoryType.CodeTaskFactory, taskName, sourceContent, false);
+        }
+
+        [Fact]
+        public void EmbedsGeneratedFileInBinlog()
+        {
+            string taskXml = @"
+                <Task>
+                    <Code Type=""Fragment"" Language=""cs"">
+                        <![CDATA[
+                              Log.LogMessage(""Hello, World!"");
+                		   ]]>
+                    </Code>
+                </Task>";
+
+            CodeTaskFactoryEmbeddedFileInBinlogTestHelper.BuildAndCheckForEmbeddedFileInBinlog(
+                FactoryType.CodeTaskFactory, "HelloTask", taskXml, true);
+        }
+
+        [Fact]
+        public void EmbedsGeneratedFileInBinlogWhenFailsToCompile()
+        {
+            string taskXml = @"
+                <Task>
+                    <Code Type=""Fragment"" Language=""cs"">
+                        <![CDATA[
+                              Log.LogMessage(""Hello, World!
+                		   ]]>
+                    </Code>
+                </Task>";
+
+            CodeTaskFactoryEmbeddedFileInBinlogTestHelper.BuildAndCheckForEmbeddedFileInBinlog(
+                FactoryType.CodeTaskFactory, "HelloTask", taskXml, false);
         }
     }
 #else

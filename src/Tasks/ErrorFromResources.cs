@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using Microsoft.Build.Framework;
@@ -33,7 +33,7 @@ namespace Microsoft.Build.Tasks
 
         /// <summary>
         /// Relevant file if any.
-        /// If none is provided, the file containing the Error 
+        /// If none is provided, the file containing the Error
         /// task will be used.
         /// </summary>
         public string File { get; set; }
@@ -52,7 +52,7 @@ namespace Microsoft.Build.Tasks
             {
                 string message = ResourceUtilities.ExtractMessageCode(false /* all codes */, Log.FormatResourceString(Resource, Arguments), out string errorCode);
 
-                // If the user specifies a code, that should override. 
+                // If the user specifies a code, that should override.
                 Code ??= errorCode;
 
                 Log.LogError(null, Code, HelpKeyword, File, 0, 0, 0, 0, message);

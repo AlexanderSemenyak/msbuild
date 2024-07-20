@@ -214,6 +214,13 @@ elementFormDefault="qualified">
                   </xs:documentation>
                 </xs:annotation>
               </xs:element>
+              <xs:element name="VersionOverride">
+                <xs:annotation>
+                  <xs:documentation>
+                    <!-- _locID_text="PackageReference_VersionOverride" _locComment="" -->When using Central Package Management (CPM), overrides the centrally defined version for this package.  If the project is not using CPM, this element has no effect.
+                  </xs:documentation>
+                </xs:annotation>
+              </xs:element>
             </xs:choice>
           </xs:sequence>
           <xs:attribute name="Include" type="xs:string">
@@ -262,6 +269,13 @@ elementFormDefault="qualified">
             <xs:annotation>
               <xs:documentation>
                 <!-- _locID_text="PackageReference_Attribute_GeneratePathProperty" _locComment="" -->Set to true to generate a Pkg* property that points to the restored location of the NuGet package contents
+              </xs:documentation>
+            </xs:annotation>
+          </xs:attribute>
+          <xs:attribute name="VersionOverride" type="xs:string" use="optional">
+            <xs:annotation>
+              <xs:documentation>
+                <!-- _locID_text="PackageReference_Attribute_VersionOverride" _locComment="" -->When using Central Package Management (CPM), overrides the centrally defined version for this package.  If the project is not using CPM, this attribute has no effect.
               </xs:documentation>
             </xs:annotation>
           </xs:attribute>
@@ -690,21 +704,21 @@ elementFormDefault="qualified">
                             <xs:element name="IncludeAssets">
                               <xs:annotation>
                                 <xs:documentation>
-                                  <!-- _locID_text="ProjectReference_IncludeAssets" _locComment="" -->Assets to include from this reference
+                                  <!-- _locID_text="ProjectReference_IncludeAssets" _locComment="" -->Assets to include from this reference. Applies to packages referenced transitively by the reference as well.
                                 </xs:documentation>
                               </xs:annotation>
                             </xs:element>
                             <xs:element name="ExcludeAssets">
                               <xs:annotation>
                                 <xs:documentation>
-                                  <!-- _locID_text="ProjectReference_ExcludeAssets" _locComment="" -->Assets to exclude from this reference
+                                  <!-- _locID_text="ProjectReference_ExcludeAssets" _locComment="" -->Assets to exclude from this reference. Applies to packages referenced transitively by the reference as well.
                                 </xs:documentation>
                               </xs:annotation>
                             </xs:element>
                             <xs:element name="PrivateAssets">
                               <xs:annotation>
                                 <xs:documentation>
-                                  <!-- _locID_text="ProjectReference_PrivateAssets" _locComment="" -->Assets that are private in this reference
+                                  <!-- _locID_text="ProjectReference_PrivateAssets" _locComment="" -->Assets that are private in this reference. Applies to packages referenced transitively by the reference as well.
                                 </xs:documentation>
                               </xs:annotation>
                             </xs:element>
@@ -1146,7 +1160,7 @@ elementFormDefault="qualified">
     </xs:element>
     <xs:element name="Folder" type="msb:SimpleItemType" substitutionGroup="msb:Item">
         <xs:annotation>
-            <xs:documentation><!-- _locID_text="Folder" _locComment="" -->Folder on disk</xs:documentation>
+            <xs:documentation><!-- _locID_text="Folder" _locComment="" -->Used by Visual Studio to identify an empty folder.</xs:documentation>
         </xs:annotation>
     </xs:element>
     <xs:element name="Import" type="msb:SimpleItemType" substitutionGroup="msb:Item">
@@ -1303,6 +1317,11 @@ elementFormDefault="qualified">
 
     <xs:element name="VisualStudioVersion" type="msb:StringPropertyType" substitutionGroup="msb:Property"/>
     <xs:element name="MinimumVisualStudioVersion" type="msb:StringPropertyType" substitutionGroup="msb:Property"/>
+    <xs:element name="AccelerateBuildsInVisualStudio" type="msb:boolean" substitutionGroup="msb:Property">
+        <xs:annotation>
+            <xs:documentation><!-- _locID_text="AccelerateBuildsInVisualStudio" _locComment="" -->Indicates whether to enable acceleration when building in Visual Studio (boolean).</xs:documentation>
+        </xs:annotation>
+    </xs:element>
     <xs:element name="AdditionalFileItemNames" type="msb:StringPropertyType" substitutionGroup="msb:Property"/>
     <xs:element name="AllowUnsafeBlocks" type="msb:StringPropertyType" substitutionGroup="msb:Property"/>
     <xs:element name="AnalysisMode" substitutionGroup="msb:Property">
@@ -1414,6 +1433,11 @@ elementFormDefault="qualified">
     <xs:element name="CLRSupport" type="msb:StringPropertyType" substitutionGroup="msb:Property"/>
     <xs:element name="UseDebugLibraries" type="msb:boolean" substitutionGroup="msb:Property"/>
     <xs:element name="CodePage" type="msb:StringPropertyType" substitutionGroup="msb:Property"/>
+    <xs:element name="CompilerGeneratedFilesOutputPath" type="msb:StringPropertyType" substitutionGroup="msb:Property">
+        <xs:annotation>
+            <xs:documentation><!-- _locID_text="CompilerGeneratedFilesOutputPath" _locComment="" -->Controls where source generated files are saved.</xs:documentation>
+        </xs:annotation>
+    </xs:element>
     <xs:element name="Configuration" type="msb:StringPropertyType" substitutionGroup="msb:Property"/>
     <xs:element name="ConfigurationName" type="msb:StringPropertyType" substitutionGroup="msb:Property"/>
     <xs:element name="ConfigurationOverrideFile" type="msb:StringPropertyType" substitutionGroup="msb:Property"/>
@@ -1695,6 +1719,11 @@ elementFormDefault="qualified">
         </xs:annotation>
     </xs:element>
     <xs:element name="DocumentationFile" type="msb:StringPropertyType" substitutionGroup="msb:Property"/>
+    <xs:element name="EmitCompilerGeneratedFiles" type="msb:boolean" substitutionGroup="msb:Property">
+        <xs:annotation>
+            <xs:documentation><!-- _locID_text="EmitCompilerGeneratedFiles" _locComment="" -->Controls whether source generated files will be saved.</xs:documentation>
+        </xs:annotation>
+    </xs:element>
     <xs:element name="EnableASPDebugging" type="msb:StringPropertyType" substitutionGroup="msb:Property"/>
     <xs:element name="EnableASPXDebugging" type="msb:StringPropertyType" substitutionGroup="msb:Property"/>
     <xs:element name="EnableSQLServerDebugging" type="msb:StringPropertyType" substitutionGroup="msb:Property"/>
@@ -1725,6 +1754,20 @@ elementFormDefault="qualified">
         <xs:documentation><!-- _locID_text="GenerateDocumentationFile" _locComment="" -->Value indicating whether a documentation file will be generated by the compiler</xs:documentation>
       </xs:annotation>
     </xs:element>
+    <xs:element name="CopyDebugSymbolFilesFromPackages" type="msb:boolean" substitutionGroup="msb:Property">
+        <xs:annotation>
+            <xs:documentation>
+                <!-- _locID_text="CopyDebugSymbolFilesFromPackages" _locComment="" -->Value indicating whether symbol files will be copied from NuGet packages by the compiler
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+    <xs:element name="CopyDocumentationFilesFromPackages" type="msb:boolean" substitutionGroup="msb:Property">
+        <xs:annotation>
+            <xs:documentation>
+                <!-- _locID_text="CopyDocumentationFilesFromPackages" _locComment="" -->Value indicating whether documentation files will be copied from NuGet packages by the compiler
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
     <xs:element name="GenerateManifests" type="msb:StringPropertyType" substitutionGroup="msb:Property"/>
     <xs:element name="GenerateLibraryLayout" type="msb:boolean" substitutionGroup="msb:Property"/>
     <xs:element name="GeneratePackageOnBuild" type="msb:boolean" substitutionGroup="msb:Property">
@@ -1733,6 +1776,11 @@ elementFormDefault="qualified">
       </xs:annotation>
     </xs:element>
     <xs:element name="DisableXbfGeneration" type="msb:boolean" substitutionGroup="msb:Property"/>
+    <xs:element name="DisableTransitiveProjectReferences" type="msb:boolean" substitutionGroup="msb:Property">
+        <xs:annotation>
+            <xs:documentation><!-- _locID_text="DisableTransitiveProjectReferences" _locComment="" -->When true, do not discover ProjectReference items representing projects referenced by this project's ProjectReferences. Applies only to projects using the .NET SDK.</xs:documentation>
+        </xs:annotation>
+    </xs:element>
     <xs:element name="SuppressXamlWarnings" type="msb:StringPropertyType" substitutionGroup="msb:Property"/>
     <xs:element name="XamlRootsLog" type="msb:StringPropertyType" substitutionGroup="msb:Property"/>
     <xs:element name="XamlSavedStateFilePath" type="msb:StringPropertyType" substitutionGroup="msb:Property"/>
@@ -1810,12 +1858,18 @@ elementFormDefault="qualified">
             <xs:documentation><!-- _locID_text="EnableDefaultItems" _locComment="" -->Defaults to true, and if set to false will disable all default item globs.</xs:documentation>
         </xs:annotation>
     </xs:element>
+    <xs:element name="IsAotCompatible" type="msb:boolean" substitutionGroup="msb:Property">
+        <xs:annotation>
+            <xs:documentation><!-- _locID_text="IsAotCompatible" _locComment="" -->Indicates whether a class library is compatible with native AOT. Setting to true will enable analyzers for trimming, single file, and AOT.</xs:documentation>
+        </xs:annotation>
+    </xs:element>
     <xs:element name="IsWebBootstrapper" type="msb:StringPropertyType" substitutionGroup="msb:Property"/>
     <xs:element name="JCPA" type="msb:StringPropertyType" substitutionGroup="msb:Property"/>
     <xs:element name="Keyword" type="msb:StringPropertyType" substitutionGroup="msb:Property"/>
     <xs:element name="LangVersion" type="msb:StringPropertyType" substitutionGroup="msb:Property"/>
     <xs:element name="VBRuntime" type="msb:StringPropertyType" substitutionGroup="msb:Property"/>
     <xs:element name="Prefer32Bit" type="msb:StringPropertyType" substitutionGroup="msb:Property"/>
+    <xs:element name="PreferNativeArm64" type="msb:StringPropertyType" substitutionGroup="msb:Property"/>
     <xs:element name="HighEntropyVA" type="msb:StringPropertyType" substitutionGroup="msb:Property"/>
     <xs:element name="LinkIncremental" type="msb:StringPropertyType" substitutionGroup="msb:Property"/>
     <xs:element name="ManifestCertificateThumbprint" type="msb:StringPropertyType" substitutionGroup="msb:Property"/>
@@ -1894,6 +1948,11 @@ elementFormDefault="qualified">
         </xs:annotation>
     </xs:element>
     <xs:element name="OSVersion" type="msb:StringPropertyType" substitutionGroup="msb:Property"/>
+    <xs:element name="BaseOutputPath" type="msb:StringPropertyType" substitutionGroup="msb:Property">
+        <xs:annotation>
+            <xs:documentation><!-- _locID_text="BaseOutputPath" _locComment="" -->Base path of output folder, where all configuration-specific output folders will be created. Default value is bin\.</xs:documentation>
+        </xs:annotation>
+    </xs:element>
     <xs:element name="OutputPath" type="msb:StringPropertyType" substitutionGroup="msb:Property">
         <xs:annotation>
             <xs:documentation><!-- _locID_text="OutputPath" _locComment="" -->Path to output folder, with trailing slash</xs:documentation>
@@ -1902,6 +1961,16 @@ elementFormDefault="qualified">
     <xs:element name="OutputType" type="msb:StringPropertyType" substitutionGroup="msb:Property">
         <xs:annotation>
             <xs:documentation><!-- _locID_text="OutputType" _locComment="" -->Type of output to generate (WinExe, Exe, or Library)</xs:documentation>
+        </xs:annotation>
+    </xs:element>
+    <xs:element name="UseArtifactsOutput" type="msb:boolean" substitutionGroup="msb:Property">
+        <xs:annotation>
+            <xs:documentation><!-- _locID_text="UseArtifactsOutput" _locComment="" -->Use a centralized location for all outputs of this project. The location of the centralized outputs is set by the ArtifactsPath property. Project outputs are grouped by kind, then by project. See https://learn.microsoft.com/en-us/dotnet/core/sdk/artifacts-output for complete details.</xs:documentation>
+        </xs:annotation>
+    </xs:element>
+    <xs:element name="ArtifactsPath" type="msb:StringPropertyType" substitutionGroup="msb:Property">
+        <xs:annotation>
+            <xs:documentation><!-- _locID_text="ArtifactsPath" _locComment="" -->The path to use for the centralized outputs - if set, UseArtifactsOutput will be defaulted to true. Project outputs will be placed under this path grouped by kind, then by project. See https://learn.microsoft.com/en-us/dotnet/core/sdk/artifacts-output for complete details.</xs:documentation>
         </xs:annotation>
     </xs:element>
     <xs:element name="PackageOutputPath" substitutionGroup="msb:Property">
@@ -1958,7 +2027,7 @@ elementFormDefault="qualified">
         <xs:documentation><!-- _locID_text="PreserveCompilationContext" _locComment="" -->Value indicating whether reference assemblies can be used in dynamic compilation</xs:documentation>
       </xs:annotation>
     </xs:element>
-    <xs:element name="ProduceReferenceAssemblies" type="msb:boolean" substitutionGroup="msb:Property" />
+    <xs:element name="ProduceReferenceAssembly" type="msb:boolean" substitutionGroup="msb:Property" />
     <xs:element name="ProductName" type="msb:StringPropertyType" substitutionGroup="msb:Property"/>
     <xs:element name="ProductVersion" type="msb:StringPropertyType" substitutionGroup="msb:Property"/>
     <xs:element name="ProjectGuid" type="msb:StringPropertyType" substitutionGroup="msb:Property"/>
@@ -2006,12 +2075,12 @@ elementFormDefault="qualified">
     <xs:element name="RootNamespace" type="msb:StringPropertyType" substitutionGroup="msb:Property"/>
     <xs:element name="RuntimeIdentifier" type="msb:StringPropertyType" substitutionGroup="msb:Property">
       <xs:annotation>
-        <xs:documentation><!-- _locID_text="RuntimeIdentifier" _locComment="" -->Runtime identifier supported by the project (e.g. win10-x64)</xs:documentation>
+        <xs:documentation><!-- _locID_text="RuntimeIdentifier" _locComment="" -->Runtime identifier supported by the project (e.g. win-x64)</xs:documentation>
       </xs:annotation>
     </xs:element>
     <xs:element name="RuntimeIdentifiers" type="msb:StringPropertyType" substitutionGroup="msb:Property">
       <xs:annotation>
-        <xs:documentation><!-- _locID_text="RuntimeIdentifiers" _locComment="" -->Semi-colon separated list of runtime identifiers supported by the project (e.g. win10-x64;osx.10.11-x64;ubuntu.16.04-x64)</xs:documentation>
+        <xs:documentation><!-- _locID_text="RuntimeIdentifiers" _locComment="" -->Semi-colon separated list of runtime identifiers supported by the project (e.g. win-x64;osx-x64;linux-x64)</xs:documentation>
       </xs:annotation>
     </xs:element>
     <xs:element name="SccProjectName" type="msb:StringPropertyType" substitutionGroup="msb:Property"/>
@@ -2055,12 +2124,12 @@ elementFormDefault="qualified">
     <xs:element name="TargetCulture" type="msb:StringPropertyType" substitutionGroup="msb:Property"/>
     <xs:element name="TargetFramework" type="msb:StringPropertyType" substitutionGroup="msb:Property">
       <xs:annotation>
-        <xs:documentation><!-- _locID_text="TargetFramework" _locComment="" -->Framework that this project targets. Must be a Target Framework Moniker (e.g. netcoreapp1.0)</xs:documentation>
+        <xs:documentation><!-- _locID_text="TargetFramework" _locComment="" -->Framework that this project targets. Must be a Target Framework Moniker (e.g. net8.0)</xs:documentation>
       </xs:annotation>
     </xs:element>
     <xs:element name="TargetFrameworks" type="msb:StringPropertyType" substitutionGroup="msb:Property">
       <xs:annotation>
-        <xs:documentation><!-- _locID_text="TargetFrameworks" _locComment="" -->Semi-colon separated list of frameworks that this project targets. Must be a Target Framework Moniker (e.g. netcoreapp1.0;net461)</xs:documentation>
+        <xs:documentation><!-- _locID_text="TargetFrameworks" _locComment="" -->Semi-colon separated list of frameworks that this project targets. Must be a Target Framework Moniker (e.g. net8.0;net461)</xs:documentation>
       </xs:annotation>
     </xs:element>
     <xs:element name="TargetFrameworkVersion" type="msb:StringPropertyType" substitutionGroup="msb:Property"/>
@@ -2356,9 +2425,14 @@ elementFormDefault="qualified">
         <xs:documentation><!-- _locID_text="PublishReadyToRun" _locComment="" -->Indicates whether the project should produce ReadyToRun images during publish.</xs:documentation>
       </xs:annotation>
     </xs:element>
+    <xs:element name="PublishAot" type="msb:boolean" substitutionGroup="msb:Property">
+      <xs:annotation>
+        <xs:documentation><!-- _locID_text="PublishAot" _locComment="" -->Indicates whether the project should produce native ahead-of-time compiled images during publish.</xs:documentation>
+      </xs:annotation>
+    </xs:element>
     <xs:element name="PublishSingleFile" type="msb:boolean" substitutionGroup="msb:Property">
       <xs:annotation>
-        <xs:documentation><!-- _locID_text="PublishSingleFile" _locComment="" -->Indicates whether the project should produce a self-extracting executable during publish.</xs:documentation>
+        <xs:documentation><!-- _locID_text="PublishSingleFile" _locComment="" -->Indicates whether the project should bundle all application-dependent files into a single binary during publish.</xs:documentation>
       </xs:annotation>
     </xs:element>
     <xs:element name="PublishTrimmed" type="msb:boolean" substitutionGroup="msb:Property">
@@ -2368,12 +2442,12 @@ elementFormDefault="qualified">
     </xs:element>
     <xs:element name="TrimmerRootAssembly" type="msb:StringPropertyType" substitutionGroup="msb:Property">
       <xs:annotation>
-        <xs:documentation><!-- _locID_text="TrimmerRootAssembly" _locComment="" -->Indicates to the linker to explicitly keep an assembly by adding it to your csproj (use the assembly name without extension).</xs:documentation>
+        <xs:documentation><!-- _locID_text="TrimmerRootAssembly" _locComment="" -->Assemblies that should not be trimmed (specify the assembly name without extension).</xs:documentation>
       </xs:annotation>
     </xs:element>
     <xs:element name="TrimmerRootDescriptor" type="msb:StringPropertyType" substitutionGroup="msb:Property">
       <xs:annotation>
-        <xs:documentation><!-- _locID_text="TrimmerRootDescriptor" _locComment="" -->Gives the linker a more specific list of types/methods, etc. to include. Path to an xml file.</xs:documentation>
+        <xs:documentation><!-- _locID_text="TrimmerRootDescriptor" _locComment="" -->XML files that specify assemblies, types, and their members that should not be trimmed.</xs:documentation>
       </xs:annotation>
     </xs:element>
 
@@ -6147,16 +6221,22 @@ elementFormDefault="qualified">
               </xs:documentation>
             </xs:annotation>
           </xs:attribute>
-          <xs:attribute name="PublicKey" type="xs:string" use="optional">
+          <xs:attribute name="Key" type="xs:string" use="optional">
             <xs:annotation>
               <xs:documentation>
-                <!-- _locID_text="InternalsVisibleTo_PublicKey" _locComment="" -->Optional public key associated with the strong name signature of the friend assembly.
+                <!-- _locID_text="InternalsVisibleTo_Key" _locComment="" -->Optional public key associated with the strong name signature of the friend assembly.
               </xs:documentation>
             </xs:annotation>
           </xs:attribute>
         </xs:extension>
       </xs:complexContent>
     </xs:complexType>
+  </xs:element>
+  
+  <xs:element name="InvariantGlobalization" type="msb:boolean" substitutionGroup="msb:Property">
+    <xs:annotation>
+      <xs:documentation><!-- _locID_text="InvariantGlobalization" _locComment="" -->Indicates whether an app runs in globalization-invariant mode without access to culture-specific data and behavior.</xs:documentation>
+    </xs:annotation>
   </xs:element>
 
 </xs:schema>

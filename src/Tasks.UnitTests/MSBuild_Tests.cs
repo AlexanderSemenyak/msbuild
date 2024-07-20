@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.IO;
@@ -19,7 +19,7 @@ using Xunit.Abstractions;
 
 namespace Microsoft.Build.UnitTests
 {
-    sealed public class MSBuildTask_Tests : IDisposable
+    public sealed class MSBuildTask_Tests : IDisposable
     {
         private readonly ITestOutputHelper _testOutput;
 
@@ -290,6 +290,55 @@ namespace Microsoft.Build.UnitTests
             Assert.DoesNotContain("MSB3202", logger.FullLog); // project file not found error
         }
 
+
+        /// <summary>
+        /// </summary>
+        [Fact]
+        public void SkipNonexistentProjectsAsMetadataBuildingInParallel()
+        {
+            ObjectModelHelpers.DeleteTempProjectDirectory();
+            ObjectModelHelpers.CreateFileInTempProjectDirectory(
+                "SkipNonexistentProjectsMain.csproj",
+                @"<Project ToolsVersion=`msbuilddefaulttoolsversion` xmlns=`msbuildnamespace`>
+                    <Target Name=`t` >
+                        <ItemGroup>
+                            <ProjectReference Include=`this_project_does_not_exist_warn.csproj` >
+                                <SkipNonexistentProjects>true</SkipNonexistentProjects>
+                            </ProjectReference>
+                            <ProjectReference Include=`this_project_does_not_exist_error.csproj` >
+                            </ProjectReference>
+                            <ProjectReference Include=`foo.csproj` >
+                                <SkipNonexistentProjects>false</SkipNonexistentProjects>
+                            </ProjectReference>
+                        </ItemGroup>
+                        <MSBuild Projects=`@(ProjectReference)` BuildInParallel=`true` />
+                    </Target>
+                </Project>
+                ");
+
+            ObjectModelHelpers.CreateFileInTempProjectDirectory(
+                "foo.csproj",
+                @"<Project ToolsVersion=`msbuilddefaulttoolsversion` xmlns=`msbuildnamespace`>
+                    <Target Name=`t` >
+                        <Message Text=`Hello from foo.csproj`/>
+                    </Target>
+                </Project>
+                ");
+
+            MockLogger logger = new MockLogger(_testOutput);
+            ObjectModelHelpers.BuildTempProjectFileExpectFailure(@"SkipNonexistentProjectsMain.csproj", logger);
+
+            logger.AssertLogContains("Hello from foo.csproj");
+            string message = String.Format(AssemblyResources.GetString("MSBuild.ProjectFileNotFoundMessage"), "this_project_does_not_exist_warn.csproj");
+            string error = String.Format(AssemblyResources.GetString("MSBuild.ProjectFileNotFound"), "this_project_does_not_exist_warn.csproj");
+            string error2 = String.Format(AssemblyResources.GetString("MSBuild.ProjectFileNotFound"), "this_project_does_not_exist_error.csproj");
+            Assert.Equal(0, logger.WarningCount);
+            Assert.Equal(1, logger.ErrorCount);
+            Assert.Contains(message, logger.FullLog); // for the missing project
+            Assert.Contains(error2, logger.FullLog);
+            Assert.DoesNotContain(error, logger.FullLog);
+        }
+
         [Fact]
         public void LogErrorWhenBuildingVCProj()
         {
@@ -342,7 +391,6 @@ namespace Microsoft.Build.UnitTests
 #else
         [Fact]
 #endif
-        [Trait("Category", "mono-osx-failing")]
         public void PropertyOverridesContainSemicolon()
         {
             ObjectModelHelpers.DeleteTempProjectDirectory();
@@ -450,7 +498,7 @@ namespace Microsoft.Build.UnitTests
 
                     <Target Name=`TargetA` Outputs=`a1.dll` Condition=`'$(MyProp)'=='0'`/>
                     <Target Name=`TargetB` Outputs=`b1.dll` Condition=`'$(MyProp)'=='1'`/>
-                   
+
                 </Project>
                 ");
 
@@ -508,7 +556,7 @@ namespace Microsoft.Build.UnitTests
 
                     <Target Name=`TargetA` Outputs=`a1.dll` Condition=`'$(MyProp)'=='0'`/>
                     <Target Name=`TargetB` Outputs=`b1.dll` Condition=`'$(MyProp)'=='1'`/>
-                   
+
                 </Project>
                 ");
 
@@ -564,7 +612,7 @@ namespace Microsoft.Build.UnitTests
 
                     <Target Name=`TargetA` Outputs=`a1.dll` Condition=`'$(MyProp)'=='0'`/>
                     <Target Name=`TargetB` Outputs=`b1.dll` Condition=`'$(MyProp)'=='1'`/>
-                   
+
                 </Project>
                 ");
 
@@ -619,7 +667,7 @@ namespace Microsoft.Build.UnitTests
 
                     <Target Name=`TargetA` Outputs=`a1.dll` Condition=`'$(MyProp)'=='0'`/>
                     <Target Name=`TargetB` Outputs=`b1.dll` Condition=`'$(MyProp)'=='1'`/>
-                   
+
                 </Project>
                 ");
 
@@ -668,7 +716,7 @@ namespace Microsoft.Build.UnitTests
 
                     <Target Name=`TargetA` Outputs=`a1.dll` Condition=`'$(MyPropG)'=='1'`/>
                     <Target Name=`TargetB` Outputs=`b1.dll` Condition=`'$(MyPropA)'=='1'`/>
-                   
+
                 </Project>
                 ");
 
@@ -723,7 +771,7 @@ namespace Microsoft.Build.UnitTests
 
                     <Target Name=`TargetA` Outputs=`a1.dll` Condition=`'$(MyPropG)'=='0'`/>
                     <Target Name=`TargetB` Outputs=`b1.dll` Condition=`'$(MyPropA)'=='1'`/>
-                   
+
                 </Project>
                 ");
 
@@ -781,7 +829,7 @@ namespace Microsoft.Build.UnitTests
 
                     <Target Name=`TargetA` Outputs=`a1.dll` Condition=`'$(MyPropG)'=='1'`/>
                     <Target Name=`TargetB` Outputs=`b1.dll` Condition=`'$(MyPropA)'=='1'`/>
-                   
+
                 </Project>
                 ");
 
@@ -1327,7 +1375,7 @@ namespace Microsoft.Build.UnitTests
                 ");
 
             string projectFile2 = ObjectModelHelpers.CreateTempFileOnDisk(@"
-                <Project DefaultTargets=`t` xmlns=`msbuildnamespace` ToolsVersion=`msbuilddefaulttoolsversion`>                  
+                <Project DefaultTargets=`t` xmlns=`msbuildnamespace` ToolsVersion=`msbuilddefaulttoolsversion`>
                     <Target Name=`t`>
                         <MSBuild Projects=`" + projectFile1 + @"` Targets=`BUILD`>
                             <Output TaskParameter=`TargetOutputs` ItemName=`out`/>
@@ -1420,7 +1468,7 @@ namespace Microsoft.Build.UnitTests
                 <Project>
                     <Target Name=`Build`>
                         <MSBuild Projects=`" + projectFile1 + @"` Targets=`Build` />
-                    </Target>	
+                    </Target>
                 </Project>");
 
             try

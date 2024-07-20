@@ -1,3 +1,6 @@
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
 using System;
 using System.IO;
 using Microsoft.Build.Framework;
@@ -6,6 +9,7 @@ using Microsoft.Build.Utilities;
 using Shouldly;
 using Xunit;
 using Xunit.Abstractions;
+using Xunit.NetCore.Extensions;
 
 #nullable disable
 
@@ -28,12 +32,11 @@ namespace Microsoft.Build.UnitTests.ResolveAssemblyReference_Tests.VersioningAnd
         /// Rationale:
         /// Primary references are never unified. This is because:
         /// (a) The user expects that a primary reference will be respected.
-        /// (b) When FindDependencies is false and AutoUnify is true, we'd have to find all 
+        /// (b) When FindDependencies is false and AutoUnify is true, we'd have to find all
         ///     dependencies anyway to make things work consistently. This would be a significant
         ///     perf hit when loading large solutions.
         /// </summary>
-        [Fact]
-        [PlatformSpecific(TestPlatforms.Windows)]
+        [WindowsOnlyFact]
         public void Exists()
         {
             // This WriteLine is a hack.  On a slow machine, the Tasks unittest fails because remoting
@@ -51,13 +54,11 @@ namespace Microsoft.Build.UnitTests.ResolveAssemblyReference_Tests.VersioningAnd
             assemblyNames[0].SetMetadata("SpecificVersion", "true");
 
             // Construct the app.config.
-            string appConfigFile = WriteAppConfig
-                (
+            string appConfigFile = WriteAppConfig(
                     "        <dependentAssembly>\n" +
                     "            <assemblyIdentity name='UnifyMe' PublicKeyToken='b77a5c561934e089' culture='neutral' />\n" +
                     "            <bindingRedirect oldVersion='1.0.0.0' newVersion='2.0.0.0' />\n" +
-                    "        </dependentAssembly>\n"
-                );
+                    "        </dependentAssembly>\n");
 
             // Now, pass feed resolved primary references into ResolveAssemblyReference.
             ResolveAssemblyReference t = new ResolveAssemblyReference();
@@ -83,7 +84,7 @@ namespace Microsoft.Build.UnitTests.ResolveAssemblyReference_Tests.VersioningAnd
         /// <list type="bullet">
         /// <item>A single primary version-strict reference was passed in to assembly version 1.0.0.0</item>
         /// <item>
-        /// An app.config was passed in that promotes a *different* assembly version name from 
+        /// An app.config was passed in that promotes a *different* assembly version name from
         /// 1.0.0.0 to 2.0.0.0
         /// </item>
         /// <item>Version 1.0.0.0 of the file exists.</item>
@@ -98,14 +99,13 @@ namespace Microsoft.Build.UnitTests.ResolveAssemblyReference_Tests.VersioningAnd
         /// <list type="number">
         /// <item>
         /// The user expects that a primary reference will be respected.</item>
-        /// <item>When FindDependencies is false and AutoUnify is true, we'd have to find all 
+        /// <item>When FindDependencies is false and AutoUnify is true, we'd have to find all
         /// dependencies anyway to make things work consistently. This would be a significant
         /// perf hit when loading large solutions.
         /// </item>
         /// </list>
         /// </summary>
         [Fact]
-        [Trait("Category", "mono-osx-failing")]
         public void ExistsDifferentName()
         {
             // Create the engine.
@@ -118,13 +118,11 @@ namespace Microsoft.Build.UnitTests.ResolveAssemblyReference_Tests.VersioningAnd
             assemblyNames[0].SetMetadata("SpecificVersion", "true");
 
             // Construct the app.config.
-            string appConfigFile = WriteAppConfig
-                (
+            string appConfigFile = WriteAppConfig(
                     "        <dependentAssembly>\n" +
                     "            <assemblyIdentity name='DontUnifyMe' PublicKeyToken='b77a5c561934e089' culture='neutral' />\n" +
                     "            <bindingRedirect oldVersion='1.0.0.0' newVersion='2.0.0.0' />\n" +
-                    "        </dependentAssembly>\n"
-                );
+                    "        </dependentAssembly>\n");
 
             // Now, pass feed resolved primary references into ResolveAssemblyReference.
             ResolveAssemblyReference t = new ResolveAssemblyReference();
@@ -155,12 +153,11 @@ namespace Microsoft.Build.UnitTests.ResolveAssemblyReference_Tests.VersioningAnd
         /// Rationale:
         /// Primary references are never unified. This is because:
         /// (a) The user expects that a primary reference will be respected.
-        /// (b) When FindDependencies is false and AutoUnify is true, we'd have to find all 
+        /// (b) When FindDependencies is false and AutoUnify is true, we'd have to find all
         ///     dependencies anyway to make things work consistently. This would be a significant
         ///     perf hit when loading large solutions.
         /// </summary>
         [Fact]
-        [Trait("Category", "mono-osx-failing")]
         public void ExistsOldVersionRange()
         {
             // Create the engine.
@@ -173,13 +170,11 @@ namespace Microsoft.Build.UnitTests.ResolveAssemblyReference_Tests.VersioningAnd
             assemblyNames[0].SetMetadata("SpecificVersion", "true");
 
             // Construct the app.config.
-            string appConfigFile = WriteAppConfig
-                (
+            string appConfigFile = WriteAppConfig(
                     "        <dependentAssembly>\n" +
                     "            <assemblyIdentity name='UnifyMe' PublicKeyToken='b77a5c561934e089' culture='neutral' />\n" +
                     "            <bindingRedirect oldVersion='0.0.0.0-1.5.0.0' newVersion='2.0.0.0' />\n" +
-                    "        </dependentAssembly>\n"
-                );
+                    "        </dependentAssembly>\n");
 
             // Now, pass feed resolved primary references into ResolveAssemblyReference.
             ResolveAssemblyReference t = new ResolveAssemblyReference();
@@ -210,12 +205,11 @@ namespace Microsoft.Build.UnitTests.ResolveAssemblyReference_Tests.VersioningAnd
         /// Rationale:
         /// Primary references are never unified. This is because:
         /// (a) The user expects that a primary reference will be respected.
-        /// (b) When FindDependencies is false and AutoUnify is true, we'd have to find all 
+        /// (b) When FindDependencies is false and AutoUnify is true, we'd have to find all
         ///     dependencies anyway to make things work consistently. This would be a significant
         ///     perf hit when loading large solutions.
         /// </summary>
         [Fact]
-        [Trait("Category", "mono-osx-failing")]
         public void HighVersionDoesntExist()
         {
             // Create the engine.
@@ -228,13 +222,11 @@ namespace Microsoft.Build.UnitTests.ResolveAssemblyReference_Tests.VersioningAnd
             assemblyNames[0].SetMetadata("SpecificVersion", "true");
 
             // Construct the app.config.
-            string appConfigFile = WriteAppConfig
-                (
+            string appConfigFile = WriteAppConfig(
                     "        <dependentAssembly>\n" +
                     "            <assemblyIdentity name='UnifyMe' PublicKeyToken='b77a5c561934e089' culture='neutral' />\n" +
                     "            <bindingRedirect oldVersion='1.0.0.0' newVersion='4.0.0.0' />\n" +
-                    "        </dependentAssembly>\n"
-                );
+                    "        </dependentAssembly>\n");
 
             // Now, pass feed resolved primary references into ResolveAssemblyReference.
             ResolveAssemblyReference t = new ResolveAssemblyReference();
@@ -265,7 +257,7 @@ namespace Microsoft.Build.UnitTests.ResolveAssemblyReference_Tests.VersioningAnd
         /// Rationale:
         /// Primary references are never unified--even those that don't exist on disk. This is because:
         /// (a) The user expects that a primary reference will be respected.
-        /// (b) When FindDependencies is false and AutoUnify is true, we'd have to find all 
+        /// (b) When FindDependencies is false and AutoUnify is true, we'd have to find all
         ///     dependencies anyway to make things work consistently. This would be a significant
         ///     perf hit when loading large solutions.
         /// </summary>
@@ -282,13 +274,11 @@ namespace Microsoft.Build.UnitTests.ResolveAssemblyReference_Tests.VersioningAnd
             assemblyNames[0].SetMetadata("SpecificVersion", "true");
 
             // Construct the app.config.
-            string appConfigFile = WriteAppConfig
-                (
+            string appConfigFile = WriteAppConfig(
                     "        <dependentAssembly>\n" +
                     "            <assemblyIdentity name='UnifyMe' PublicKeyToken='b77a5c561934e089' culture='neutral' />\n" +
                     "            <bindingRedirect oldVersion='0.0.0.0-2.0.0.0' newVersion='2.0.0.0' />\n" +
-                    "        </dependentAssembly>\n"
-                );
+                    "        </dependentAssembly>\n");
 
             // Now, pass feed resolved primary references into ResolveAssemblyReference.
             ResolveAssemblyReference t = new ResolveAssemblyReference();

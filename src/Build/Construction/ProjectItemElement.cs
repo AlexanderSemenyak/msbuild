@@ -1,12 +1,10 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Collections.Generic;
-using System.Xml;
 using System.Diagnostics;
-using System.Linq;
-using Microsoft.Build.Collections;
+using System.Xml;
 using Microsoft.Build.ObjectModelRemoting;
 using Microsoft.Build.Shared;
 
@@ -56,7 +54,7 @@ namespace Microsoft.Build.Construction
         private string _update;
 
         /// <summary>
-        /// Whether the include value has wildcards, 
+        /// Whether the include value has wildcards,
         /// cached for performance.
         /// </summary>
         private bool? _includeHasWildcards;
@@ -89,7 +87,7 @@ namespace Microsoft.Build.Construction
         }
 
         /// <summary>
-        /// Gets or sets the Include value. 
+        /// Gets or sets the Include value.
         /// Returns empty string if it is not present.
         /// Removes the attribute if the value to set is empty or null.
         /// </summary>
@@ -104,14 +102,14 @@ namespace Microsoft.Build.Construction
 
             set
             {
-                ErrorUtilities.VerifyThrowInvalidOperation(String.IsNullOrEmpty(value) || (Remove.Length == 0 && Update.Length == 0) , "OM_OneOfAttributeButNotMore", ElementName, XMakeAttributes.include, XMakeAttributes.remove, XMakeAttributes.update);
+                ErrorUtilities.VerifyThrowInvalidOperation(String.IsNullOrEmpty(value) || (Remove.Length == 0 && Update.Length == 0), "OM_OneOfAttributeButNotMore", ElementName, XMakeAttributes.include, XMakeAttributes.remove, XMakeAttributes.update);
                 SetOrRemoveAttribute(XMakeAttributes.include, value, ref _include, "Set item Include {0}", value);
                 _includeHasWildcards = null;
             }
         }
 
         /// <summary>
-        /// Gets or sets the Exclude value. 
+        /// Gets or sets the Exclude value.
         /// Returns empty string if it is not present.
         /// Removes the attribute if the value to set is empty or null.
         /// </summary>
@@ -285,7 +283,7 @@ namespace Microsoft.Build.Construction
         /// <summary>
         /// Get any child metadata.
         /// </summary>
-        public ICollection<ProjectMetadataElement> Metadata => new ReadOnlyCollection<ProjectMetadataElement>(Children.OfType<ProjectMetadataElement>());
+        public ICollection<ProjectMetadataElement> Metadata => GetChildrenOfType<ProjectMetadataElement>();
 
         /// <summary>
         /// Location of the include attribute
@@ -333,7 +331,7 @@ namespace Microsoft.Build.Construction
         public ElementLocation KeepDuplicatesLocation => GetAttributeLocation(XMakeAttributes.keepDuplicates);
 
         /// <summary>
-        /// Whether the include value has wildcards, 
+        /// Whether the include value has wildcards,
         /// cached for performance.
         /// </summary>
         internal bool IncludeHasWildcards

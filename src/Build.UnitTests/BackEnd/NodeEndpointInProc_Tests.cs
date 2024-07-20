@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Collections.Generic;
@@ -20,7 +20,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
     {
         private delegate void EndpointOperationDelegate(NodeEndpointInProc endpoint);
 
-        private class MockHost : IBuildComponentHost, INodePacketFactory
+        private sealed class MockHost : IBuildComponentHost, INodePacketFactory
         {
             private DataReceivedContext _dataReceivedContext;
             private AutoResetEvent _dataReceivedEvent;
@@ -81,6 +81,8 @@ namespace Microsoft.Build.UnitTests.BackEnd
                 throw new NotImplementedException();
             }
 
+            public TComponent GetComponent<TComponent>(BuildComponentType type) where TComponent : IBuildComponent => throw new NotImplementedException("Not expected to be used.");
+
             public void RegisterFactory(BuildComponentType type, BuildComponentFactoryDelegate factory)
             {
             }
@@ -122,7 +124,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
 
             #endregion
         }
-        private class TestPacket : INodePacket
+        private sealed class TestPacket : INodePacket
         {
             #region INodePacket Members
 
@@ -185,8 +187,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
             {
                 NodeEndpointInProc.CreateInProcEndpoints(
                     NodeEndpointInProc.EndpointMode.Synchronous, null);
-            }
-           );
+            });
         }
 
         [Fact]
@@ -196,8 +197,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
             {
                 NodeEndpointInProc.CreateInProcEndpoints(
                     NodeEndpointInProc.EndpointMode.Asynchronous, null);
-            }
-           );
+            });
         }
         /// <summary>
         /// Verify that the links:

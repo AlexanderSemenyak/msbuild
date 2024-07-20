@@ -1,9 +1,10 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Microsoft.Build.BackEnd.Shared;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Framework.Profiler;
 using Microsoft.Build.Shared;
@@ -26,7 +27,7 @@ namespace Microsoft.Build.BackEnd.Logging
         /// Logs a comment (BuildMessageEventArgs) with a certain MessageImportance level
         /// </summary>
         /// <param name="buildEventContext">Event context information which describes who is logging the event</param>
-        /// <param name="importance">How important is the message, this will determine which verbosities the message will show up on. 
+        /// <param name="importance">How important is the message, this will determine which verbosities the message will show up on.
         /// The higher the importance the lower the verbosity needs to be for the message to be seen</param>
         /// <param name="messageResourceName">String which identifies the message in the string resx</param>
         /// <param name="messageArgs">Arguments for the format string indexed by messageResourceName</param>
@@ -45,7 +46,7 @@ namespace Microsoft.Build.BackEnd.Logging
         /// Log a comment
         /// </summary>
         /// <param name="buildEventContext">Event context information which describes who is logging the event</param>
-        /// <param name="importance">How important is the message, this will determine which verbosities the message will show up on. 
+        /// <param name="importance">How important is the message, this will determine which verbosities the message will show up on.
         /// The higher the importance the lower the verbosity needs to be for the message to be seen</param>
         /// <param name="message">Message to log</param>
         /// <exception cref="InternalErrorException">BuildEventContext is null</exception>
@@ -59,7 +60,7 @@ namespace Microsoft.Build.BackEnd.Logging
         /// Log a comment
         /// </summary>
         /// <param name="buildEventContext">Event context information which describes who is logging the event</param>
-        /// <param name="importance">How important is the message, this will determine which verbosities the message will show up on. 
+        /// <param name="importance">How important is the message, this will determine which verbosities the message will show up on.
         /// The higher the importance the lower the verbosity needs to be for the message to be seen</param>
         /// <param name="message">Message to log</param>
         /// <param name="messageArgs">Message formatting arguments</param>
@@ -69,19 +70,8 @@ namespace Microsoft.Build.BackEnd.Logging
         {
             if (!OnlyLogCriticalEvents)
             {
-                ErrorUtilities.VerifyThrow(buildEventContext != null, "buildEventContext was null");
-                ErrorUtilities.VerifyThrow(message != null, "message was null");
+                BuildMessageEventArgs buildEvent = EventsCreatorHelper.CreateMessageEventFromText(buildEventContext, importance, message, messageArgs);
 
-                BuildMessageEventArgs buildEvent = new BuildMessageEventArgs
-                    (
-                        message,
-                        helpKeyword: null,
-                        senderName: "MSBuild",
-                        importance,
-                        DateTime.UtcNow,
-                        messageArgs
-                    );
-                buildEvent.BuildEventContext = buildEventContext;
                 ProcessLoggingEvent(buildEvent);
             }
         }
@@ -138,33 +128,8 @@ namespace Microsoft.Build.BackEnd.Logging
         /// <exception cref="InternalErrorException">Message is null</exception>
         public void LogErrorFromText(BuildEventContext buildEventContext, string subcategoryResourceName, string errorCode, string helpKeyword, BuildEventFileInfo file, string message)
         {
-            ErrorUtilities.VerifyThrow(buildEventContext != null, "Must specify the buildEventContext");
-            ErrorUtilities.VerifyThrow(file != null, "Must specify the associated file.");
-            ErrorUtilities.VerifyThrow(message != null, "Need error message.");
+            BuildErrorEventArgs buildEvent = EventsCreatorHelper.CreateErrorEventFromText(buildEventContext, subcategoryResourceName, errorCode, helpKeyword, file, message);
 
-            string subcategory = null;
-
-            if (subcategoryResourceName != null)
-            {
-                subcategory = AssemblyResources.GetString(subcategoryResourceName);
-            }
-
-            BuildErrorEventArgs buildEvent =
-            new BuildErrorEventArgs
-            (
-                subcategory,
-                errorCode,
-                file.File,
-                file.Line,
-                file.Column,
-                file.EndLine,
-                file.EndColumn,
-                message,
-                helpKeyword,
-                "MSBuild"
-            );
-
-            buildEvent.BuildEventContext = buildEventContext;
             if (buildEvent.ProjectFile == null && buildEventContext.ProjectContextId != BuildEventContext.InvalidProjectContextId)
             {
                 _projectFileMap.TryGetValue(buildEventContext.ProjectContextId, out string projectFile);
@@ -193,8 +158,7 @@ namespace Microsoft.Build.BackEnd.Logging
             if (!invalidProjectFileException.HasBeenLogged)
             {
                 BuildErrorEventArgs buildEvent =
-                    new BuildErrorEventArgs
-                    (
+                    new BuildErrorEventArgs(
                         invalidProjectFileException.ErrorSubcategory,
                         invalidProjectFileException.ErrorCode,
                         invalidProjectFileException.ProjectFile,
@@ -204,8 +168,7 @@ namespace Microsoft.Build.BackEnd.Logging
                         invalidProjectFileException.EndColumnNumber,
                         invalidProjectFileException.BaseMessage,
                         invalidProjectFileException.HelpKeyword,
-                        "MSBuild"
-                    );
+                        "MSBuild");
                 buildEvent.BuildEventContext = buildEventContext;
                 if (buildEvent.ProjectFile == null && buildEventContext.ProjectContextId != BuildEventContext.InvalidProjectContextId)
                 {
@@ -346,8 +309,7 @@ namespace Microsoft.Build.BackEnd.Logging
                 subcategory = AssemblyResources.GetString(subcategoryResourceName);
             }
 
-            BuildWarningEventArgs buildEvent = new BuildWarningEventArgs
-                (
+            BuildWarningEventArgs buildEvent = new BuildWarningEventArgs(
                     subcategory,
                     warningCode,
                     file.File,
@@ -357,8 +319,7 @@ namespace Microsoft.Build.BackEnd.Logging
                     file.EndColumn,
                     message,
                     helpKeyword,
-                    "MSBuild"
-                );
+                    "MSBuild");
 
             buildEvent.BuildEventContext = buildEventContext;
             if (buildEvent.ProjectFile == null && buildEventContext.ProjectContextId != BuildEventContext.InvalidProjectContextId)
@@ -376,7 +337,7 @@ namespace Microsoft.Build.BackEnd.Logging
         #region Log status
 
         /// <summary>
-        /// Logs that the build has started 
+        /// Logs that the build has started
         /// </summary>
         public void LogBuildStarted()
         {
@@ -388,14 +349,9 @@ namespace Microsoft.Build.BackEnd.Logging
                 message = ResourceUtilities.GetResourceString("BuildStarted");
             }
 
-            IDictionary<string, string> environmentProperties = null;
+            IDictionary<string, string> environmentProperties = _componentHost?.BuildParameters?.BuildProcessEnvironment;
 
-            if (_componentHost?.BuildParameters != null)
-            {
-                environmentProperties = _componentHost.BuildParameters.BuildProcessEnvironment;
-            }
-
-            BuildStartedEventArgs buildEvent = new BuildStartedEventArgs(message, null /* no help keyword */, environmentProperties);
+            BuildStartedEventArgs buildEvent = new(message, helpKeyword: null, environmentProperties);
 
             // Raise the event with the filters
             ProcessLoggingEvent(buildEvent);
@@ -415,7 +371,14 @@ namespace Microsoft.Build.BackEnd.Logging
             string message = String.Empty;
             if (!OnlyLogCriticalEvents)
             {
-                message = ResourceUtilities.GetResourceString(success ? "BuildFinishedSuccess" : "BuildFinishedFailure");
+                if (Question)
+                {
+                    message = ResourceUtilities.GetResourceString(success ? "BuildFinishedQuestionSuccess" : "BuildFinishedQuestionFailure");
+                }
+                else
+                {
+                    message = ResourceUtilities.GetResourceString(success ? "BuildFinishedSuccess" : "BuildFinishedFailure");
+                }
             }
 
             BuildFinishedEventArgs buildEvent = new BuildFinishedEventArgs(message, null /* no help keyword */, success);
@@ -424,6 +387,15 @@ namespace Microsoft.Build.BackEnd.Logging
 
             // Make sure we process this event before going any further
             WaitForLoggingToProcessEvents();
+        }
+
+        /// <inheritdoc />
+        public void LogBuildCanceled()
+        {
+            string message = ResourceUtilities.GetResourceString("AbortingBuild"); 
+            BuildCanceledEventArgs buildEvent = new BuildCanceledEventArgs(message);
+
+            ProcessLoggingEvent(buildEvent);
         }
 
         /// <inheritdoc />
@@ -573,8 +545,7 @@ namespace Microsoft.Build.BackEnd.Logging
             // See https://github.com/dotnet/msbuild/issues/6341 for details
             IDictionary<string, string> globalProperties = buildRequestConfiguration.GlobalProperties.ToDictionary();
 
-            var buildEvent = new ProjectStartedEventArgs
-                (
+            var buildEvent = new ProjectStartedEventArgs(
                     configurationId,
                     message: null,
                     helpKeyword: null,
@@ -584,8 +555,7 @@ namespace Microsoft.Build.BackEnd.Logging
                     items,
                     parentBuildEventContext,
                     globalProperties,
-                    buildRequestConfiguration.ToolsVersion
-                );
+                    buildRequestConfiguration.ToolsVersion);
             buildEvent.BuildEventContext = projectBuildEventContext;
 
             ProcessLoggingEvent(buildEvent);
@@ -604,13 +574,11 @@ namespace Microsoft.Build.BackEnd.Logging
         {
             ErrorUtilities.VerifyThrow(projectBuildEventContext != null, "projectBuildEventContext");
 
-            ProjectFinishedEventArgs buildEvent = new ProjectFinishedEventArgs
-                (
+            ProjectFinishedEventArgs buildEvent = new ProjectFinishedEventArgs(
                     message: null,
                     helpKeyword: null,
                     projectFile,
-                    success
-                );
+                    success);
             buildEvent.BuildEventContext = projectBuildEventContext;
             ProcessLoggingEvent(buildEvent);
 
@@ -635,20 +603,17 @@ namespace Microsoft.Build.BackEnd.Logging
         public BuildEventContext LogTargetStarted(BuildEventContext projectBuildEventContext, string targetName, string projectFile, string projectFileOfTargetElement, string parentTargetName, TargetBuiltReason buildReason)
         {
             ErrorUtilities.VerifyThrow(projectBuildEventContext != null, "projectBuildEventContext is null");
-            BuildEventContext targetBuildEventContext = new BuildEventContext
-                (
+            BuildEventContext targetBuildEventContext = new BuildEventContext(
                     projectBuildEventContext.SubmissionId,
                     projectBuildEventContext.NodeId,
                     projectBuildEventContext.ProjectInstanceId,
                     projectBuildEventContext.ProjectContextId,
                     NextTargetId,
-                    BuildEventContext.InvalidTaskId
-                );
+                    BuildEventContext.InvalidTaskId);
 
             if (!OnlyLogCriticalEvents)
             {
-                TargetStartedEventArgs buildEvent = new TargetStartedEventArgs
-                    (
+                TargetStartedEventArgs buildEvent = new TargetStartedEventArgs(
                         message: null,
                         helpKeyword: null,
                         targetName,
@@ -656,8 +621,7 @@ namespace Microsoft.Build.BackEnd.Logging
                         projectFileOfTargetElement,
                         parentTargetName,
                         buildReason,
-                        DateTime.UtcNow
-                    );
+                        DateTime.UtcNow);
                 buildEvent.BuildEventContext = targetBuildEventContext;
                 ProcessLoggingEvent(buildEvent);
             }
@@ -681,16 +645,14 @@ namespace Microsoft.Build.BackEnd.Logging
             {
                 ErrorUtilities.VerifyThrow(targetBuildEventContext != null, "targetBuildEventContext is null");
 
-                TargetFinishedEventArgs buildEvent = new TargetFinishedEventArgs
-                    (
+                TargetFinishedEventArgs buildEvent = new TargetFinishedEventArgs(
                         message: null,
                         helpKeyword: null,
                         targetName,
                         projectFile,
                         projectFileOfTargetElement,
                         success,
-                        targetOutputs
-                    );
+                        targetOutputs);
 
                 buildEvent.BuildEventContext = targetBuildEventContext;
                 ProcessLoggingEvent(buildEvent);
@@ -704,20 +666,20 @@ namespace Microsoft.Build.BackEnd.Logging
         /// <param name="taskName">Task Name</param>
         /// <param name="projectFile">Project file being built</param>
         /// <param name="projectFileOfTaskNode">Project file which contains the task</param>
+        /// <param name="taskAssemblyLocation">>The location of the assembly containing the implementation of the task.</param>
         /// <exception cref="InternalErrorException">BuildEventContext is null</exception>
-        public void LogTaskStarted(BuildEventContext taskBuildEventContext, string taskName, string projectFile, string projectFileOfTaskNode)
+        public void LogTaskStarted(BuildEventContext taskBuildEventContext, string taskName, string projectFile, string projectFileOfTaskNode, string taskAssemblyLocation)
         {
             ErrorUtilities.VerifyThrow(taskBuildEventContext != null, "targetBuildEventContext is null");
             if (!OnlyLogCriticalEvents)
             {
-                TaskStartedEventArgs buildEvent = new TaskStartedEventArgs
-                    (
+                TaskStartedEventArgs buildEvent = new TaskStartedEventArgs(
                         message: null,
                         helpKeyword: null,
                         projectFile,
                         projectFileOfTaskNode,
-                        taskName
-                    );
+                        taskName,
+                        taskAssemblyLocation);
                 buildEvent.BuildEventContext = taskBuildEventContext;
                 ProcessLoggingEvent(buildEvent);
             }
@@ -732,31 +694,29 @@ namespace Microsoft.Build.BackEnd.Logging
         /// <param name="projectFileOfTaskNode">Project file which contains the task</param>
         /// <param name="line">The line number in the file where the task invocation is located.</param>
         /// <param name="column">The column number in the file where the task invocation is located.</param>
+        /// <param name="taskAssemblyLocation">>The location of the assembly containing the implementation of the task.</param>
         /// <returns>The build event context for the task.</returns>
         /// <exception cref="InternalErrorException">BuildEventContext is null</exception>
-        public BuildEventContext LogTaskStarted2(BuildEventContext targetBuildEventContext, string taskName, string projectFile, string projectFileOfTaskNode, int line, int column)
+        public BuildEventContext LogTaskStarted2(BuildEventContext targetBuildEventContext, string taskName, string projectFile, string projectFileOfTaskNode, int line, int column, string taskAssemblyLocation)
         {
             ErrorUtilities.VerifyThrow(targetBuildEventContext != null, "targetBuildEventContext is null");
-            BuildEventContext taskBuildEventContext = new BuildEventContext
-                (
+            BuildEventContext taskBuildEventContext = new BuildEventContext(
                     targetBuildEventContext.SubmissionId,
                     targetBuildEventContext.NodeId,
                     targetBuildEventContext.ProjectInstanceId,
                     targetBuildEventContext.ProjectContextId,
                     targetBuildEventContext.TargetId,
-                    NextTaskId
-                );
+                    NextTaskId);
 
             if (!OnlyLogCriticalEvents)
             {
-                TaskStartedEventArgs buildEvent = new TaskStartedEventArgs
-                    (
+                TaskStartedEventArgs buildEvent = new TaskStartedEventArgs(
                         message: null,
                         helpKeyword: null,
                         projectFile,
                         projectFileOfTaskNode,
-                        taskName
-                    );
+                        taskName,
+                        taskAssemblyLocation);
                 buildEvent.BuildEventContext = taskBuildEventContext;
                 buildEvent.LineNumber = line;
                 buildEvent.ColumnNumber = column;
@@ -781,15 +741,13 @@ namespace Microsoft.Build.BackEnd.Logging
             {
                 ErrorUtilities.VerifyThrow(taskBuildEventContext != null, "taskBuildEventContext is null");
 
-                TaskFinishedEventArgs buildEvent = new TaskFinishedEventArgs
-                    (
+                TaskFinishedEventArgs buildEvent = new TaskFinishedEventArgs(
                         message: null,
                         helpKeyword: null,
                         projectFile,
                         projectFileOfTaskNode,
                         taskName,
-                        success
-                    );
+                        success);
                 buildEvent.BuildEventContext = taskBuildEventContext;
                 ProcessLoggingEvent(buildEvent);
             }
@@ -817,6 +775,23 @@ namespace Microsoft.Build.BackEnd.Logging
             };
 
             ProcessLoggingEvent(telemetryEvent);
+        }
+
+        #endregion
+
+        #region log response files
+        /// <summary>
+        /// Logs a file to include in the binlogs
+        /// </summary>
+        /// <param name="buildEventContext">Event context information which describes who is logging the event</param>
+        /// <param name="filePath">Full path to response file</param>
+        public void LogIncludeFile(BuildEventContext buildEventContext, string filePath)
+        {
+            ErrorUtilities.VerifyThrow(buildEventContext != null, "buildEventContext was null");
+            ErrorUtilities.VerifyThrow(filePath != null, "response file path was null");
+            ResponseFileUsedEventArgs responseFileUsedEvent = new ResponseFileUsedEventArgs(filePath);
+            responseFileUsedEvent.BuildEventContext = buildEventContext;
+            ProcessLoggingEvent(responseFileUsedEvent);
         }
 
         #endregion

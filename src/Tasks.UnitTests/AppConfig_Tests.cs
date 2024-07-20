@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Text;
@@ -34,7 +34,8 @@ namespace Microsoft.Build.UnitTests
                 "    </runtime>\n" +
                 "</configuration>";
 
-            app.Read(new XmlTextReader(xml, XmlNodeType.Document, null));
+            using var xmlReader = new XmlTextReader(xml, XmlNodeType.Document, null);
+            app.Read(xmlReader);
 
             string s = Summarize(app);
 
@@ -59,7 +60,8 @@ namespace Microsoft.Build.UnitTests
                 "    </runtime>\n" +
                 "</configuration>";
 
-            app.Read(new XmlTextReader(xml, XmlNodeType.Document, null));
+            using var xmlReader = new XmlTextReader(xml, XmlNodeType.Document, null);
+            app.Read(xmlReader);
 
             string s = Summarize(app);
 
@@ -105,7 +107,8 @@ namespace Microsoft.Build.UnitTests
                 "    </system.net>\n" +
                 "</configuration>";
 
-            app.Read(new XmlTextReader(xml, XmlNodeType.Document, null));
+            using var xmlReader = new XmlTextReader(xml, XmlNodeType.Document, null);
+            app.Read(xmlReader);
 
             string s = Summarize(app);
 
@@ -169,7 +172,8 @@ namespace Microsoft.Build.UnitTests
                 "    </system.runtime.remoting>\n" +
                 "</configuration>        ";
 
-            app.Read(new XmlTextReader(xml, XmlNodeType.Document, null));
+            using var xmlReader = new XmlTextReader(xml, XmlNodeType.Document, null);
+            app.Read(xmlReader);
 
             string s = Summarize(app);
 
@@ -194,7 +198,8 @@ namespace Microsoft.Build.UnitTests
                 "    </runtime>\n" +
                 "</configuration>";
 
-            app.Read(new XmlTextReader(xml, XmlNodeType.Document, null));
+            using var xmlReader = new XmlTextReader(xml, XmlNodeType.Document, null);
+            app.Read(xmlReader);
 
             string s = Summarize(app);
 

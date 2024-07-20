@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Collections;
@@ -10,17 +10,18 @@ using System.Reflection;
 using Microsoft.Build.BackEnd.Logging;
 using Microsoft.Build.Collections;
 using Microsoft.Build.Construction;
+using Microsoft.Build.Engine.UnitTests;
 using Microsoft.Build.Engine.UnitTests.TestComparers;
 using Microsoft.Build.Evaluation;
 using Microsoft.Build.Execution;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Shared;
 using Microsoft.Build.Shared.FileSystem;
-using InvalidProjectFileException = Microsoft.Build.Exceptions.InvalidProjectFileException;
 using Microsoft.Build.Utilities;
 using Shouldly;
 using Xunit;
 using Xunit.Abstractions;
+using InvalidProjectFileException = Microsoft.Build.Exceptions.InvalidProjectFileException;
 
 #nullable disable
 
@@ -358,26 +359,22 @@ namespace Microsoft.Build.UnitTests.BackEnd
             TaskRegistry registry = CreateTaskRegistryAndRegisterTasks(elementList);
 
             // Not in registry, so shouldn't match
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     exactMatchRequired: true,
                     runtime: null,
                     architecture: null,
                     shouldBeRetrieved: false,
-                    shouldBeRetrievedFromCache: false
-                );
+                    shouldBeRetrievedFromCache: false);
 
             // Still not in registry, so shouldn't match this time either -- and we should pull from the cache
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     exactMatchRequired: true,
                     runtime: null,
                     architecture: null,
                     shouldBeRetrieved: false,
-                    shouldBeRetrievedFromCache: true
-                );
+                    shouldBeRetrievedFromCache: true);
         }
 
         /// <summary>
@@ -398,26 +395,22 @@ namespace Microsoft.Build.UnitTests.BackEnd
             TaskRegistry registry = CreateTaskRegistryAndRegisterTasks(elementList);
 
             // Not in registry, so shouldn't match
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     exactMatchRequired: false,
                     runtime: null,
                     architecture: null,
                     shouldBeRetrieved: false,
-                    shouldBeRetrievedFromCache: false
-                );
+                    shouldBeRetrievedFromCache: false);
 
             // Still not in registry, so shouldn't match this time either -- and we should pull from the cache
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     exactMatchRequired: false,
                     runtime: null,
                     architecture: null,
                     shouldBeRetrieved: false,
-                    shouldBeRetrievedFromCache: true
-                );
+                    shouldBeRetrievedFromCache: true);
         }
 
         /// <summary>
@@ -440,26 +433,22 @@ namespace Microsoft.Build.UnitTests.BackEnd
             TaskRegistry registry = CreateTaskRegistryAndRegisterTasks(elementList);
 
             // Not in registry, so shouldn't match
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     exactMatchRequired: false,
                     runtime: "CLR2",
                     architecture: "*",
                     shouldBeRetrieved: false,
-                    shouldBeRetrievedFromCache: false
-                );
+                    shouldBeRetrievedFromCache: false);
 
             // Still not in registry, so shouldn't match this time either -- and we should pull from the cache
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     exactMatchRequired: false,
                     runtime: "CLR2",
                     architecture: "*",
                     shouldBeRetrieved: false,
-                    shouldBeRetrievedFromCache: true
-                );
+                    shouldBeRetrievedFromCache: true);
         }
 
         /// <summary>
@@ -482,26 +471,22 @@ namespace Microsoft.Build.UnitTests.BackEnd
             TaskRegistry registry = CreateTaskRegistryAndRegisterTasks(elementList);
 
             // Not in registry, so shouldn't match
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     exactMatchRequired: false,
                     runtime: "CLR2",
                     architecture: "*",
                     shouldBeRetrieved: false,
-                    shouldBeRetrievedFromCache: false
-                );
+                    shouldBeRetrievedFromCache: false);
 
             // Still not in registry, so shouldn't match this time either -- and we should pull from the cache
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     exactMatchRequired: false,
                     runtime: null,
                     architecture: null,
                     shouldBeRetrieved: true,
-                    shouldBeRetrievedFromCache: false
-                );
+                    shouldBeRetrievedFromCache: false);
         }
 
         /// <summary>
@@ -524,59 +509,49 @@ namespace Microsoft.Build.UnitTests.BackEnd
             TaskRegistry registry = CreateTaskRegistryAndRegisterTasks(elementList);
 
             // no parameters - no match
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     exactMatchRequired: true,
                     runtime: null,
                     architecture: null,
                     shouldBeRetrieved: false,
-                    shouldBeRetrievedFromCache: false
-                );
+                    shouldBeRetrievedFromCache: false);
 
             // parameters that would be a successful fuzzy match - no match
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     exactMatchRequired: true,
                     runtime: XMakeAttributes.MSBuildRuntimeValues.clr4,
                     architecture: XMakeAttributes.MSBuildArchitectureValues.any,
                     shouldBeRetrieved: false,
-                    shouldBeRetrievedFromCache: false
-                );
+                    shouldBeRetrievedFromCache: false);
 
             // parameters that are a successful exact match
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     exactMatchRequired: true,
                     runtime: XMakeAttributes.MSBuildRuntimeValues.clr4,
                     architecture: XMakeAttributes.MSBuildArchitectureValues.x86,
                     shouldBeRetrieved: true,
-                    shouldBeRetrievedFromCache: false
-                );
+                    shouldBeRetrievedFromCache: false);
 
             // parameters that do not match - should not retrieve
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     exactMatchRequired: true,
                     runtime: XMakeAttributes.MSBuildRuntimeValues.clr2,
                     architecture: XMakeAttributes.MSBuildArchitectureValues.x64,
                     shouldBeRetrieved: false,
-                    shouldBeRetrievedFromCache: false
-                );
+                    shouldBeRetrievedFromCache: false);
 
             // exact match #2 -- should get it from the cache this time
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     exactMatchRequired: true,
                     runtime: XMakeAttributes.MSBuildRuntimeValues.clr4,
                     architecture: XMakeAttributes.MSBuildArchitectureValues.x86,
                     shouldBeRetrieved: true,
-                    shouldBeRetrievedFromCache: true
-                );
+                    shouldBeRetrievedFromCache: true);
         }
 
         /// <summary>
@@ -607,29 +582,25 @@ namespace Microsoft.Build.UnitTests.BackEnd
             taskParameters.Add(XMakeAttributes.architecture, XMakeAttributes.MSBuildArchitectureValues.x86);
             taskParameters.Add("Foo", "Bar");
 
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     true /* exact match */,
                     taskParameters,
                     shouldBeRetrieved: false,
-                    shouldBeRetrievedFromCache: false
-                );
+                    shouldBeRetrievedFromCache: false);
 
             // However, it should still match itself -- so if we try again, we should get the "no match"
             // back from the cache this time.
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     true /* exact match */,
                     taskParameters,
                     shouldBeRetrieved: false,
-                    shouldBeRetrievedFromCache: true
-                );
+                    shouldBeRetrievedFromCache: true);
         }
 
         [Theory]
-        [InlineData("x64","true","x86","", "x64")] // x64 wins
+        [InlineData("x64", "true", "x86", "", "x64")] // x64 wins
         [InlineData("x64", "false", "x86", "true", "x86")] // x86 wins
         public void OverriddenTask_AlwaysWins(string firstArch, string firstOverride, string secondArch, string secondOverride, string expectedArch)
         {
@@ -651,8 +622,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
             TaskRegistry registry = CreateTaskRegistryAndRegisterTasks(elementList);
 
             // no parameters
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     exactMatchRequired: false,
                     runtime: null,
@@ -660,12 +630,10 @@ namespace Microsoft.Build.UnitTests.BackEnd
                     shouldBeRetrieved: true,
                     shouldBeRetrievedFromCache: false,
                     expectedRuntime: XMakeAttributes.MSBuildRuntimeValues.any,
-                    expectedArchitecture: expectedArch
-                );
+                    expectedArchitecture: expectedArch);
 
             // no parameters, fuzzy match
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     exactMatchRequired: false,
                     runtime: null,
@@ -673,8 +641,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
                     shouldBeRetrieved: true,
                     shouldBeRetrievedFromCache: false,
                     expectedRuntime: XMakeAttributes.MSBuildRuntimeValues.any,
-                    expectedArchitecture: expectedArch
-                );
+                    expectedArchitecture: expectedArch);
         }
 
         [Fact]
@@ -738,8 +705,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
             TaskRegistry registry = CreateTaskRegistryAndRegisterTasks(elementList);
 
             // no parameters
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     exactMatchRequired: false,
                     runtime: null,
@@ -747,12 +713,10 @@ namespace Microsoft.Build.UnitTests.BackEnd
                     shouldBeRetrieved: true,
                     shouldBeRetrievedFromCache: false,
                     expectedRuntime: XMakeAttributes.MSBuildRuntimeValues.clr4,
-                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x86
-                );
+                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x86);
 
             // parameters that are a successful exact match - should retrieve from cache
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     exactMatchRequired: false,
                     runtime: XMakeAttributes.MSBuildRuntimeValues.clr4,
@@ -760,12 +724,10 @@ namespace Microsoft.Build.UnitTests.BackEnd
                     shouldBeRetrieved: true,
                     shouldBeRetrievedFromCache: true,
                     expectedRuntime: XMakeAttributes.MSBuildRuntimeValues.clr4,
-                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x86
-                );
+                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x86);
 
             // parameters that would be a successful fuzzy match - should still be retrieved from the cache
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     exactMatchRequired: false,
                     runtime: XMakeAttributes.MSBuildRuntimeValues.clr4,
@@ -773,23 +735,19 @@ namespace Microsoft.Build.UnitTests.BackEnd
                     shouldBeRetrieved: true,
                     shouldBeRetrievedFromCache: true,
                     expectedRuntime: XMakeAttributes.MSBuildRuntimeValues.clr4,
-                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x86
-                );
+                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x86);
 
             // parameters that do not match -- but would match the previous fuzzy match request. Should NOT retrieve anything
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     exactMatchRequired: false,
                     runtime: XMakeAttributes.MSBuildRuntimeValues.clr4,
                     architecture: XMakeAttributes.MSBuildArchitectureValues.x64,
                     shouldBeRetrieved: false,
-                    shouldBeRetrievedFromCache: false
-                );
+                    shouldBeRetrievedFromCache: false);
 
             // and another fuzzy match -- should still be pulling from the cache.
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     exactMatchRequired: false,
                     runtime: XMakeAttributes.MSBuildRuntimeValues.any,
@@ -797,8 +755,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
                     shouldBeRetrieved: true,
                     shouldBeRetrievedFromCache: true,
                     expectedRuntime: XMakeAttributes.MSBuildRuntimeValues.clr4,
-                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x86
-                );
+                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x86);
         }
 
         /// <summary>
@@ -821,8 +778,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
             TaskRegistry registry = CreateTaskRegistryAndRegisterTasks(elementList);
 
             // no parameters - should retrieve the record
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     exactMatchRequired: false,
                     runtime: null,
@@ -830,23 +786,19 @@ namespace Microsoft.Build.UnitTests.BackEnd
                     shouldBeRetrieved: true,
                     shouldBeRetrievedFromCache: false,
                     expectedRuntime: XMakeAttributes.MSBuildRuntimeValues.clr4,
-                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x86
-                );
+                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x86);
 
             // parameters that do not match at all - shouldn't retrieve anything
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     exactMatchRequired: false,
                     runtime: XMakeAttributes.MSBuildRuntimeValues.clr2,
                     architecture: XMakeAttributes.MSBuildArchitectureValues.x86,
                     shouldBeRetrieved: false,
-                    shouldBeRetrievedFromCache: false
-                );
+                    shouldBeRetrievedFromCache: false);
 
             // parameters that are a successful match - should retrieve from the cache this time
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     exactMatchRequired: false,
                     runtime: XMakeAttributes.MSBuildRuntimeValues.clr4,
@@ -854,8 +806,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
                     shouldBeRetrieved: true,
                     shouldBeRetrievedFromCache: true,
                     expectedRuntime: XMakeAttributes.MSBuildRuntimeValues.clr4,
-                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x86
-                );
+                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x86);
         }
 
         /// <summary>
@@ -884,8 +835,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
             TaskRegistry registry = CreateTaskRegistryAndRegisterTasks(elementList);
 
             // no parameters -- gets the first one (CLR4|x86)
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     exactMatchRequired: false,
                     runtime: null,
@@ -893,12 +843,10 @@ namespace Microsoft.Build.UnitTests.BackEnd
                     shouldBeRetrieved: true,
                     shouldBeRetrievedFromCache: false,
                     expectedRuntime: XMakeAttributes.MSBuildRuntimeValues.clr4,
-                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x86
-                );
+                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x86);
 
             // parameters that are a successful exact match for CLR4|x86 -- should come from cache
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     exactMatchRequired: false,
                     runtime: XMakeAttributes.MSBuildRuntimeValues.clr4,
@@ -906,12 +854,10 @@ namespace Microsoft.Build.UnitTests.BackEnd
                     shouldBeRetrieved: true,
                     shouldBeRetrievedFromCache: true,
                     expectedRuntime: XMakeAttributes.MSBuildRuntimeValues.clr4,
-                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x86
-                );
+                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x86);
 
             // parameters that would be a successful fuzzy match for either, so should get the one in the cache (CLR4|x86)
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     exactMatchRequired: false,
                     runtime: XMakeAttributes.MSBuildRuntimeValues.clr4,
@@ -919,12 +865,10 @@ namespace Microsoft.Build.UnitTests.BackEnd
                     shouldBeRetrieved: true,
                     shouldBeRetrievedFromCache: true,
                     expectedRuntime: XMakeAttributes.MSBuildRuntimeValues.clr4,
-                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x86
-                );
+                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x86);
 
             // parameters that match *|x64 - should retrieve that
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     exactMatchRequired: false,
                     runtime: XMakeAttributes.MSBuildRuntimeValues.clr4,
@@ -932,12 +876,10 @@ namespace Microsoft.Build.UnitTests.BackEnd
                     shouldBeRetrieved: true,
                     shouldBeRetrievedFromCache: false,
                     expectedRuntime: XMakeAttributes.MSBuildRuntimeValues.any,
-                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x64
-                );
+                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x64);
 
             // match CLR4|x86 again - comes from the cache
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     exactMatchRequired: false,
                     runtime: XMakeAttributes.MSBuildRuntimeValues.any,
@@ -945,12 +887,10 @@ namespace Microsoft.Build.UnitTests.BackEnd
                     shouldBeRetrieved: true,
                     shouldBeRetrievedFromCache: true,
                     expectedRuntime: XMakeAttributes.MSBuildRuntimeValues.clr4,
-                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x86
-                );
+                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x86);
 
             // match *|x64 again
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     exactMatchRequired: false,
                     runtime: XMakeAttributes.MSBuildRuntimeValues.clr2,
@@ -958,23 +898,19 @@ namespace Microsoft.Build.UnitTests.BackEnd
                     shouldBeRetrieved: true,
                     shouldBeRetrievedFromCache: true,
                     expectedRuntime: XMakeAttributes.MSBuildRuntimeValues.any,
-                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x64
-                );
+                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x64);
 
             // CLR2|x86 should not match either task record
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     exactMatchRequired: false,
                     runtime: XMakeAttributes.MSBuildRuntimeValues.clr2,
                     architecture: XMakeAttributes.MSBuildArchitectureValues.x86,
                     shouldBeRetrieved: false,
-                    shouldBeRetrievedFromCache: false
-                );
+                    shouldBeRetrievedFromCache: false);
 
             // match *|x64 again -- should still be a cache hit
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     exactMatchRequired: false,
                     runtime: XMakeAttributes.MSBuildRuntimeValues.clr2,
@@ -982,8 +918,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
                     shouldBeRetrieved: true,
                     shouldBeRetrievedFromCache: true,
                     expectedRuntime: XMakeAttributes.MSBuildRuntimeValues.any,
-                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x64
-                );
+                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x64);
         }
 
         /// <summary>
@@ -1014,8 +949,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
             TaskRegistry registry = CreateTaskRegistryAndRegisterTasks(elementList);
 
             // CLR4|x64 -- should be fulfilled by *|x64
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     exactMatchRequired: false,
                     runtime: XMakeAttributes.MSBuildRuntimeValues.clr4,
@@ -1023,13 +957,11 @@ namespace Microsoft.Build.UnitTests.BackEnd
                     shouldBeRetrieved: true,
                     shouldBeRetrievedFromCache: false,
                     expectedRuntime: XMakeAttributes.MSBuildRuntimeValues.any,
-                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x64
-                );
+                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x64);
 
             // CLR4|* -- could be filled by either, would normally be filled by CLR4|x86 (since it was registered first),
             // but since *|x64 is in the cache already, we return that one.
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     exactMatchRequired: false,
                     runtime: XMakeAttributes.MSBuildRuntimeValues.clr4,
@@ -1037,8 +969,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
                     shouldBeRetrieved: true,
                     shouldBeRetrievedFromCache: true,
                     expectedRuntime: XMakeAttributes.MSBuildRuntimeValues.any,
-                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x64
-                );
+                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x64);
         }
 
         /// <summary>
@@ -1061,8 +992,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
             TaskRegistry registry = CreateTaskRegistryAndRegisterTasks(elementList);
 
             // CLR4|* should match
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     exactMatchRequired: false,
                     runtime: XMakeAttributes.MSBuildRuntimeValues.clr4,
@@ -1070,23 +1000,19 @@ namespace Microsoft.Build.UnitTests.BackEnd
                     shouldBeRetrieved: true,
                     shouldBeRetrievedFromCache: false,
                     expectedRuntime: XMakeAttributes.MSBuildRuntimeValues.clr4,
-                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x86
-                );
+                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x86);
 
             // CLR4|x64 should not match
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     exactMatchRequired: false,
                     runtime: XMakeAttributes.MSBuildRuntimeValues.clr4,
                     architecture: XMakeAttributes.MSBuildArchitectureValues.x64,
                     shouldBeRetrieved: false,
-                    shouldBeRetrievedFromCache: false
-                );
+                    shouldBeRetrievedFromCache: false);
 
             // try CLR4|* again -- should resolve correctly from the cache.
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     exactMatchRequired: false,
                     runtime: XMakeAttributes.MSBuildRuntimeValues.clr4,
@@ -1094,19 +1020,16 @@ namespace Microsoft.Build.UnitTests.BackEnd
                     shouldBeRetrieved: true,
                     shouldBeRetrievedFromCache: true,
                     expectedRuntime: XMakeAttributes.MSBuildRuntimeValues.clr4,
-                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x86
-                );
+                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x86);
 
             // try CLR4|x64 again -- should also come from the catch (but needless to say, still not be a match)
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     exactMatchRequired: false,
                     runtime: XMakeAttributes.MSBuildRuntimeValues.clr4,
                     architecture: XMakeAttributes.MSBuildArchitectureValues.x64,
                     shouldBeRetrieved: false,
-                    shouldBeRetrievedFromCache: true
-                );
+                    shouldBeRetrievedFromCache: true);
         }
 
         /// <summary>
@@ -1136,28 +1059,24 @@ namespace Microsoft.Build.UnitTests.BackEnd
             taskParameters.Add(XMakeAttributes.architecture, XMakeAttributes.MSBuildArchitectureValues.x86);
             taskParameters.Add("Foo", "Bar");
 
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     false /* fuzzy match */,
                     taskParameters,
                     shouldBeRetrieved: true,
                     shouldBeRetrievedFromCache: false,
                     expectedRuntime: XMakeAttributes.MSBuildRuntimeValues.clr4,
-                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x86
-                );
+                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x86);
 
             // And if we try again, we should get it from the cache this time.
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     false /* fuzzy match */,
                     taskParameters,
                     shouldBeRetrieved: true,
                     shouldBeRetrievedFromCache: true,
                     expectedRuntime: XMakeAttributes.MSBuildRuntimeValues.clr4,
-                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x86
-                );
+                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x86);
 
             taskParameters = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             taskParameters.Add(XMakeAttributes.runtime, XMakeAttributes.MSBuildRuntimeValues.clr4);
@@ -1167,16 +1086,14 @@ namespace Microsoft.Build.UnitTests.BackEnd
             // Even with a different value to the additional parameter, because it's a fuzzy equals and because all
             // our equivalence check looks for is runtime and architecture, it still successfully retrieves the
             // existing record from the cache.
-            RetrieveAndValidateRegisteredTaskRecord
-                (
+            RetrieveAndValidateRegisteredTaskRecord(
                     registry,
                     false /* fuzzy match */,
                     taskParameters,
                     shouldBeRetrieved: true,
                     shouldBeRetrievedFromCache: true,
                     expectedRuntime: XMakeAttributes.MSBuildRuntimeValues.clr4,
-                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x86
-                );
+                    expectedArchitecture: XMakeAttributes.MSBuildArchitectureValues.x86);
         }
 
         #endregion
@@ -1319,7 +1236,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
         {
             List<ProjectUsingTaskElement> elementList = new List<ProjectUsingTaskElement>();
             ProjectRootElement project = ProjectRootElement.Create();
-            
+
             ProjectUsingTaskElement element = project.AddUsingTask("Task1", AssemblyUtilities.GetAssemblyLocation(typeof(TaskRegistry_Tests.NullTaskTypeTaskFactory).GetTypeInfo().Assembly), null);
 
             element.TaskFactory = typeof(NullTaskTypeTaskFactory).FullName;
@@ -1328,7 +1245,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
             TaskRegistry registry = CreateTaskRegistryAndRegisterTasks(elementList);
 
             InvalidProjectFileException exception = Should.Throw<InvalidProjectFileException>(() => registry.GetRegisteredTask("Task1", "none", null, false, new TargetLoggingContext(_loggingService, new BuildEventContext(1, 1, BuildEventContext.InvalidProjectContextId, 1)), ElementLocation.Create("none", 1, 2)));
-            
+
             exception.ErrorCode.ShouldBe("MSB4175");
 
             exception.Message.ShouldContain("The task factory must return a value for the \"TaskType\" property.");
@@ -1464,8 +1381,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
                 List<ProjectUsingTaskElement> elementList = CreateParameterElementWithAttributes(output, required, type);
                 CreateTaskRegistryAndRegisterTasks(elementList);
                 Assert.True(false);
-            }
-           );
+            });
         }
         /// <summary>
         /// Verify the following types work when registered as input parameters
@@ -1508,8 +1424,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
                 List<ProjectUsingTaskElement> elementList = CreateParameterElementWithAttributes(output, required, type);
                 TaskRegistry registry = CreateTaskRegistryAndRegisterTasks(elementList);
                 Assert.True(false);
-            }
-           );
+            });
         }
         /// <summary>
         /// Verify that value types and (string and ITaskItem classes) can be registered as input parameters
@@ -1555,8 +1470,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
                 List<ProjectUsingTaskElement> elementList = CreateParameterElementWithAttributes(output, required, type);
                 TaskRegistry registry = CreateTaskRegistryAndRegisterTasks(elementList);
                 Assert.True(false);
-            }
-           );
+            });
         }
         /// <summary>
         /// Verify when a random scalar input class is attempted to be registered that we get an invalid project file exceptions.
@@ -1574,8 +1488,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
                 List<ProjectUsingTaskElement> elementList = CreateParameterElementWithAttributes(output, required, type);
                 TaskRegistry registry = CreateTaskRegistryAndRegisterTasks(elementList);
                 Assert.True(false);
-            }
-           );
+            });
         }
         /// <summary>
         /// Verify the expected output parameters are supported
@@ -1646,8 +1559,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
                 List<ProjectUsingTaskElement> elementList = CreateParameterElementWithAttributes(output, required, type);
                 TaskRegistry registry = CreateTaskRegistryAndRegisterTasks(elementList);
                 Assert.True(false);
-            }
-           );
+            });
         }
         /// <summary>
         /// Verify when the output parameter is not set that it defaults to false
@@ -1694,8 +1606,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
                 List<ProjectUsingTaskElement> elementList = CreateParameterElementWithAttributes(output, required, type);
                 CreateTaskRegistryAndRegisterTasks(elementList);
                 Assert.True(false);
-            }
-           );
+            });
         }
         /// <summary>
         /// Verify an empty required value results in a default value of false
@@ -1742,8 +1653,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
                 List<ProjectUsingTaskElement> elementList = CreateParameterElementWithAttributes(output, required, type);
                 CreateTaskRegistryAndRegisterTasks(elementList);
                 Assert.True(false);
-            }
-           );
+            });
         }
         /// <summary>
         /// Verify that expansion of the attributes works.
@@ -1900,8 +1810,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
                 List<ProjectUsingTaskElement> elementList = CreateTaskBodyElementWithAttributes(evaluate, "");
                 CreateTaskRegistryAndRegisterTasks(elementList);
                 Assert.True(false);
-            }
-           );
+            });
         }
         /// <summary>
         /// Verify when false is passed to evaluate value results in a false value being set
@@ -1984,17 +1893,16 @@ namespace Microsoft.Build.UnitTests.BackEnd
                     new PropertyDictionary<ProjectPropertyInstance>(toolsetGlobalProperties),
                     new Dictionary<string, SubToolset>
                     {
-                        {"1.0", new SubToolset("1.0", new PropertyDictionary<ProjectPropertyInstance>(subToolsetProperties))},
-                        {"2.0", new SubToolset("2.0", new PropertyDictionary<ProjectPropertyInstance>(subToolsetProperties))}
+                        {"1.0", new SubToolset("1.0", new PropertyDictionary<ProjectPropertyInstance>(subToolsetProperties)) },
+                        {"2.0", new SubToolset("2.0", new PropertyDictionary<ProjectPropertyInstance>(subToolsetProperties)) }
                     },
                     "motp",
                     "dotv",
                     new Dictionary<string, ProjectImportPathMatch>
                     {
-                        {"a", new ProjectImportPathMatch("a", new List<string> {"b", "c"})},
-                        {"d", new ProjectImportPathMatch("d", new List<string> {"e", "f"})}
-                    }
-                );
+                        {"a", new ProjectImportPathMatch("a", new List<string> {"b", "c"}) },
+                        {"d", new ProjectImportPathMatch("d", new List<string> {"e", "f"}) }
+                    });
 
                 ProjectRootElement project = ProjectRootElement.Create();
 
@@ -2090,16 +1998,14 @@ namespace Microsoft.Build.UnitTests.BackEnd
         /// - that the record that was retrieved had the expected runtime and architecture
         ///   values as its factory parameters.
         /// </summary>
-        private void RetrieveAndValidateRegisteredTaskRecord
-                                                        (
+        private void RetrieveAndValidateRegisteredTaskRecord(
                                                             TaskRegistry registry,
                                                             bool exactMatchRequired,
                                                             Dictionary<string, string> taskParameters,
                                                             bool shouldBeRetrieved,
                                                             bool shouldBeRetrievedFromCache,
                                                             string expectedRuntime,
-                                                            string expectedArchitecture
-                                                        )
+                                                            string expectedArchitecture)
         {
             bool retrievedFromCache;
             var record = registry.GetTaskRegistrationRecord(TestTaskName, null, taskParameters, exactMatchRequired, _targetLoggingContext, _elementLocation, out retrievedFromCache);
@@ -2134,8 +2040,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
         /// - that the record that was retrieved had the expected runtime and architecture
         ///   values as its factory parameters.
         /// </summary>
-        private void RetrieveAndValidateRegisteredTaskRecord
-                                                        (
+        private void RetrieveAndValidateRegisteredTaskRecord(
                                                             TaskRegistry registry,
                                                             bool exactMatchRequired,
                                                             string runtime,
@@ -2143,8 +2048,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
                                                             bool shouldBeRetrieved,
                                                             bool shouldBeRetrievedFromCache,
                                                             string expectedRuntime,
-                                                            string expectedArchitecture
-                                                        )
+                                                            string expectedArchitecture)
         {
             Dictionary<string, string> parameters = null;
             if (runtime != null || architecture != null)
@@ -2279,20 +2183,14 @@ namespace Microsoft.Build.UnitTests.BackEnd
                 ? new TaskRegistry(toolset, ProjectCollection.GlobalProjectCollection.ProjectRootElementCache)
                 : new TaskRegistry(ProjectCollection.GlobalProjectCollection.ProjectRootElementCache);
 
-            foreach (ProjectUsingTaskElement projectUsingTaskElement in usingTaskElements)
-            {
-                TaskRegistry.RegisterTasksFromUsingTaskElement
-                    (
-                        _loggingService,
-                        _loggerContext,
-                        Directory.GetCurrentDirectory(),
-                        projectUsingTaskElement,
-                        registry,
-                        RegistryExpander,
-                        ExpanderOptions.ExpandPropertiesAndItems,
-                        FileSystems.Default
-                    );
-            }
+            string currentDir = Directory.GetCurrentDirectory();
+            TaskRegistry.InitializeTaskRegistryFromUsingTaskElements(
+                _targetLoggingContext,
+                usingTaskElements.Select(el => (el, currentDir)),
+                registry,
+                RegistryExpander,
+                ExpanderOptions.ExpandPropertiesAndItems,
+                FileSystems.Default);
 
             return registry;
         }
@@ -2351,14 +2249,18 @@ namespace Microsoft.Build.UnitTests.BackEnd
             secondaryItemsByName.ImportItems(thirdItemGroup);
             secondaryItemsByName.ImportItems(trueItemGroup);
 
-            Expander<ProjectPropertyInstance, ProjectItemInstance> expander = new Expander<ProjectPropertyInstance, ProjectItemInstance>(pg, secondaryItemsByName, FileSystems.Default);
+            Expander<ProjectPropertyInstance, ProjectItemInstance> expander = new Expander<ProjectPropertyInstance, ProjectItemInstance>(
+                pg,
+                secondaryItemsByName,
+                FileSystems.Default,
+                new TestLoggingContext(null!, new BuildEventContext(1, 2, 3, 4)));
             return expander;
         }
 
         /// <summary>
         /// Create a custom class derived from ITaskItem to test input and output parameters work using this item.
         /// </summary>
-        internal class DerivedFromITaskItem : ITaskItem
+        internal sealed class DerivedFromITaskItem : ITaskItem
         {
             /// <summary>
             /// The ItemSpec of the item

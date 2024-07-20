@@ -1,13 +1,13 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
-using Microsoft.Build.Framework;
 using Microsoft.Build.Execution;
+using Microsoft.Build.Framework;
 using Microsoft.Build.Shared;
 using TaskItem = Microsoft.Build.Execution.ProjectItemInstance.TaskItem;
-using System.Collections;
 
 #nullable disable
 
@@ -91,7 +91,7 @@ namespace Microsoft.Build.BackEnd.Logging
         /// </summary>
         internal void LogTargetBatchFinished(string projectFullPath, bool success, IEnumerable<TaskItem> targetOutputs)
         {
-            ErrorUtilities.VerifyThrow(IsValid, "Should be valid");
+            this.CheckValidity();
 
             TargetOutputItemsInstanceEnumeratorProxy targetOutputWrapper = null;
 
@@ -108,11 +108,11 @@ namespace Microsoft.Build.BackEnd.Logging
         /// <summary>
         /// Log that a task is about to start
         /// </summary>
-        internal TaskLoggingContext LogTaskBatchStarted(string projectFullPath, ProjectTargetInstanceChild task)
+        internal TaskLoggingContext LogTaskBatchStarted(string projectFullPath, ProjectTargetInstanceChild task, string taskAssemblyLocation)
         {
-            ErrorUtilities.VerifyThrow(IsValid, "Should be valid");
+            this.CheckValidity();
 
-            return new TaskLoggingContext(this, projectFullPath, task);
+            return new TaskLoggingContext(this, projectFullPath, task, taskAssemblyLocation);
         }
 
         /// <summary>
@@ -121,7 +121,7 @@ namespace Microsoft.Build.BackEnd.Logging
         /// </summary>
         /// <remarks>
         /// This class is designed to be passed to loggers.
-        /// The expense of copying items is only incurred if and when 
+        /// The expense of copying items is only incurred if and when
         /// a logger chooses to enumerate over it.
         /// </remarks>
         internal class TargetOutputItemsInstanceEnumeratorProxy : IEnumerable<TaskItem>

@@ -1,21 +1,21 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
-using Microsoft.Build.Framework;
-using Microsoft.Build.BackEnd;
-using Microsoft.Build.Construction;
-using Microsoft.Build.Shared;
-using Microsoft.Build.BackEnd.Logging;
-using System.Collections.Generic;
-using Microsoft.Build.Execution;
-using Microsoft.Build.Collections;
 using System.Collections;
-using Microsoft.Build.Unittest;
-using TaskItem = Microsoft.Build.Execution.ProjectItemInstance.TaskItem;
+using System.Collections.Generic;
 using System.Threading.Tasks;
-using Xunit;
+using Microsoft.Build.BackEnd;
+using Microsoft.Build.BackEnd.Logging;
+using Microsoft.Build.Collections;
+using Microsoft.Build.Construction;
+using Microsoft.Build.Execution;
+using Microsoft.Build.Framework;
+using Microsoft.Build.Shared;
+using Microsoft.Build.Unittest;
 using Shouldly;
+using Xunit;
+using TaskItem = Microsoft.Build.Execution.ProjectItemInstance.TaskItem;
 
 #nullable disable
 
@@ -236,8 +236,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
             Assert.Throws<ArgumentNullException>(() =>
             {
                 _taskHost.LogErrorEvent(null);
-            }
-           );
+            });
         }
         /// <summary>
         /// Test that a null warning event will cause an exception
@@ -248,8 +247,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
             Assert.Throws<ArgumentNullException>(() =>
             {
                 _taskHost.LogWarningEvent(null);
-            }
-           );
+            });
         }
         /// <summary>
         /// Test that a null message event will cause an exception
@@ -260,8 +258,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
             Assert.Throws<ArgumentNullException>(() =>
             {
                 _taskHost.LogMessageEvent(null);
-            }
-           );
+            });
         }
         /// <summary>
         /// Test that a null custom event will cause an exception
@@ -272,8 +269,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
             Assert.Throws<ArgumentNullException>(() =>
             {
                 _taskHost.LogCustomEvent(null);
-            }
-           );
+            });
         }
         /// <summary>
         /// Test that errors are logged properly
@@ -387,6 +383,61 @@ namespace Microsoft.Build.UnitTests.BackEnd
             // Make sure our custom logger received the actual custom event and not some fake.
             Assert.True(_customLogger.LastCustom is MyCustomBuildEventArgsNotSerializable); // "Expected custom build Event"
             Assert.Equal("testCustomBuildEvent", _customLogger.LastCustom.Message);
+        }
+
+        /// <summary>
+        /// Test that extended custom events are logged properly
+        /// </summary>
+        [Fact]
+        public void TestLogExtendedCustomEventNotSerializableMP()
+        {
+            _mockHost.BuildParameters.MaxNodeCount = 4;
+
+            // Log the custom event args.  (Pretend that the task actually did this.)
+            _taskHost.LogCustomEvent(new ExtendedCustomBuildEventArgs("testExtCustomBuildEvent", "ext message", null, null));
+
+            // Make sure our custom logger received the actual custom event and not some fake.
+            Assert.True(_customLogger.LastCustom is ExtendedCustomBuildEventArgs); // "Expected custom build Event"
+            Assert.Equal("ext message", _customLogger.LastCustom.Message);
+        }
+
+        [Fact]
+        public void TestLogExtendedCustomErrorNotSerializableMP()
+        {
+            _mockHost.BuildParameters.MaxNodeCount = 4;
+
+            // Log the custom event args.  (Pretend that the task actually did this.)
+            _taskHost.LogErrorEvent(new ExtendedBuildErrorEventArgs("testExtCustomBuildError", null, null, null, 0, 0, 0, 0,"ext err message", null, null));
+
+            // Make sure our custom logger received the actual custom event and not some fake.
+            Assert.True(_customLogger.LastError is ExtendedBuildErrorEventArgs); // "Expected custom build Event"
+            Assert.Equal("ext err message", _customLogger.LastError.Message);
+        }
+
+        [Fact]
+        public void TestLogExtendedCustomWarningNotSerializableMP()
+        {
+            _mockHost.BuildParameters.MaxNodeCount = 4;
+
+            // Log the custom event args.  (Pretend that the task actually did this.)
+            _taskHost.LogWarningEvent(new ExtendedBuildWarningEventArgs("testExtCustomBuildWarning", null, null, null, 0, 0, 0, 0, "ext warn message", null, null));
+
+            // Make sure our custom logger received the actual custom event and not some fake.
+            Assert.True(_customLogger.LastWarning is ExtendedBuildWarningEventArgs); // "Expected custom build Event"
+            Assert.Equal("ext warn message", _customLogger.LastWarning.Message);
+        }
+
+        [Fact]
+        public void TestLogExtendedCustomMessageNotSerializableMP()
+        {
+            _mockHost.BuildParameters.MaxNodeCount = 4;
+
+            // Log the custom event args.  (Pretend that the task actually did this.)
+            _taskHost.LogMessageEvent(new ExtendedBuildMessageEventArgs("testExtCustomBuildMessage", "ext message", null, null, MessageImportance.Normal));
+
+            // Make sure our custom logger received the actual custom event and not some fake.
+            Assert.True(_customLogger.LastMessage is ExtendedBuildMessageEventArgs); // "Expected custom build Event"
+            Assert.Equal("ext message", _customLogger.LastMessage.Message);
         }
 
         /// <summary>
@@ -798,7 +849,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
         /// Create a custom message event to make sure it can get sent correctly
         /// </summary>
         [Serializable]
-        internal class MyCustomMessageEvent : BuildMessageEventArgs
+        internal sealed class MyCustomMessageEvent : BuildMessageEventArgs
         {
             /// <summary>
             /// Some custom data for the custom event.
@@ -808,10 +859,8 @@ namespace Microsoft.Build.UnitTests.BackEnd
             /// <summary>
             /// Constructor
             /// </summary>
-            internal MyCustomMessageEvent
-                (
-                string message
-                )
+            internal MyCustomMessageEvent(
+                string message)
                 : base(message, null, null, MessageImportance.High)
             {
             }
@@ -837,7 +886,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
         /// Create a custom build event to test the logging of custom build events against the task host
         /// </summary>
         [Serializable]
-        internal class MyCustomBuildEventArgs : CustomBuildEventArgs
+        internal sealed class MyCustomBuildEventArgs : CustomBuildEventArgs
         {
             /// <summary>
             /// Constructor
@@ -858,7 +907,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
         /// Class which implements a simple custom build error
         /// </summary>
         [Serializable]
-        internal class MyCustomBuildErrorEventArgs : BuildErrorEventArgs
+        internal sealed class MyCustomBuildErrorEventArgs : BuildErrorEventArgs
         {
             /// <summary>
             /// Some custom data for the custom event.
@@ -868,10 +917,8 @@ namespace Microsoft.Build.UnitTests.BackEnd
             /// <summary>
             /// Constructor
             /// </summary>
-            internal MyCustomBuildErrorEventArgs
-                (
-                string message
-                )
+            internal MyCustomBuildErrorEventArgs(
+                string message)
                 : base(null, null, null, 0, 0, 0, 0, message, null, null)
             {
             }
@@ -897,7 +944,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
         /// Class which implements a simple custom build warning
         /// </summary>
         [Serializable]
-        internal class MyCustomBuildWarningEventArgs : BuildWarningEventArgs
+        internal sealed class MyCustomBuildWarningEventArgs : BuildWarningEventArgs
         {
             /// <summary>
             /// Custom data for the custom event
@@ -907,10 +954,8 @@ namespace Microsoft.Build.UnitTests.BackEnd
             /// <summary>
             /// Constructor
             /// </summary>
-            internal MyCustomBuildWarningEventArgs
-                (
-                string message
-                )
+            internal MyCustomBuildWarningEventArgs(
+                string message)
                 : base(null, null, null, 0, 0, 0, 0, message, null, null)
             {
             }
@@ -935,7 +980,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
         /// <summary>
         /// Create a custom message event to make sure it can get sent correctly
         /// </summary>
-        internal class MyCustomMessageEventNotSerializable : BuildMessageEventArgs
+        internal sealed class MyCustomMessageEventNotSerializable : BuildMessageEventArgs
         {
             /// <summary>
             /// Some custom data for the custom event.
@@ -945,10 +990,8 @@ namespace Microsoft.Build.UnitTests.BackEnd
             /// <summary>
             /// Constructor
             /// </summary>
-            internal MyCustomMessageEventNotSerializable
-                (
-                string message
-                )
+            internal MyCustomMessageEventNotSerializable(
+                string message)
                 : base(message, null, null, MessageImportance.High)
             {
             }
@@ -973,7 +1016,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
         /// <summary>
         /// Custom build event which is not marked serializable. This is used to make sure we warn if we try and log a not serializable type in multiproc.
         /// </summary>
-        internal class MyCustomBuildEventArgsNotSerializable : CustomBuildEventArgs
+        internal sealed class MyCustomBuildEventArgsNotSerializable : CustomBuildEventArgs
         {
             // If binary serialization is not available, then we use a simple serializer which relies on a default constructor.  So to test
             //  what happens for an event that's not serializable, don't include a default constructor.
@@ -995,7 +1038,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
         /// <summary>
         /// Class which implements a simple custom build error which is not serializable
         /// </summary>
-        internal class MyCustomBuildErrorEventArgsNotSerializable : BuildErrorEventArgs
+        internal sealed class MyCustomBuildErrorEventArgsNotSerializable : BuildErrorEventArgs
         {
             /// <summary>
             /// Custom data for the custom event
@@ -1005,10 +1048,8 @@ namespace Microsoft.Build.UnitTests.BackEnd
             /// <summary>
             /// Constructor
             /// </summary>
-            internal MyCustomBuildErrorEventArgsNotSerializable
-                (
-                string message
-                )
+            internal MyCustomBuildErrorEventArgsNotSerializable(
+                string message)
                 : base(null, null, null, 0, 0, 0, 0, message, null, null)
             {
             }
@@ -1033,7 +1074,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
         /// <summary>
         /// Class which implements a simple custom build warning which is not serializable
         /// </summary>
-        internal class MyCustomBuildWarningEventArgsNotSerializable : BuildWarningEventArgs
+        internal sealed class MyCustomBuildWarningEventArgsNotSerializable : BuildWarningEventArgs
         {
             /// <summary>
             /// Custom data for the custom event
@@ -1043,10 +1084,8 @@ namespace Microsoft.Build.UnitTests.BackEnd
             /// <summary>
             /// Constructor
             /// </summary>
-            internal MyCustomBuildWarningEventArgsNotSerializable
-                (
-                string message
-                )
+            internal MyCustomBuildWarningEventArgsNotSerializable(
+                string message)
                 : base(null, null, null, 0, 0, 0, 0, message, null, null)
             {
             }
@@ -1071,7 +1110,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
         /// <summary>
         /// Custom logger which will be used for testing
         /// </summary>
-        internal class MyCustomLogger : ILogger
+        internal sealed class MyCustomLogger : ILogger
         {
             /// <summary>
             /// Last error event the logger encountered
@@ -1301,7 +1340,7 @@ namespace Microsoft.Build.UnitTests.BackEnd
         /// <summary>
         /// Mock this class so that we can determine if build results are being cloned or if the live copies are being returned to the callers of the msbuild callback.
         /// </summary>
-        internal class MockIRequestBuilderCallback : IRequestBuilderCallback, IRequestBuilder
+        internal sealed class MockIRequestBuilderCallback : IRequestBuilderCallback, IRequestBuilder
         {
             /// <summary>
             /// BuildResults to return from the BuildProjects method.

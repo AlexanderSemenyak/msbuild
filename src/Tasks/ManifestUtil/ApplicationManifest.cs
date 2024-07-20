@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Collections.Generic;
@@ -267,7 +267,7 @@ namespace Microsoft.Build.Tasks.Deployment.ManifestUtilities
         /// Gets or sets the minimum OS version required by the application.
         /// </summary>
         /// <remarks>
-        /// An example value is "5.1.2600.0" for Windows XP.        
+        /// An example value is "5.1.2600.0" for Windows XP.
         /// If you don't specify a value, a default value is used.
         /// The default value is the minimum supported OS of the .NET Framework, which is "4.10.0.0" for Windows 98 Second Edition.
         /// However, if the application contains any native or Reg-Free COM references, then the default is the Windows XP version, which is "5.1.2600.0".
@@ -278,7 +278,11 @@ namespace Microsoft.Build.Tasks.Deployment.ManifestUtilities
         {
             get
             {
-                if (String.IsNullOrEmpty(_oSMajor)) return null;
+                if (String.IsNullOrEmpty(_oSMajor))
+                {
+                    return null;
+                }
+
                 Version v;
                 try
                 {
@@ -435,7 +439,7 @@ namespace Microsoft.Build.Tasks.Deployment.ManifestUtilities
             {
                 if (assembly.ReferenceType == AssemblyReferenceType.NativeAssembly && !assembly.IsPrerequisite && !String.IsNullOrEmpty(assembly.ResolvedPath))
                 {
-                    ComInfo[] comInfoArray = ManifestReader.GetComInfo(assembly.ResolvedPath); 
+                    ComInfo[] comInfoArray = ManifestReader.GetComInfo(assembly.ResolvedPath);
                     if (comInfoArray != null)
                     {
                         foreach (ComInfo comInfo in comInfoArray)
@@ -509,15 +513,23 @@ namespace Microsoft.Build.Tasks.Deployment.ManifestUtilities
 
         private void ValidateConfig()
         {
-            if (String.IsNullOrEmpty(ConfigFile)) return;
+            if (String.IsNullOrEmpty(ConfigFile))
+            {
+                return;
+            }
+
             FileReference configFile = FileReferences.FindTargetPath(ConfigFile);
-            if (configFile == null) return;
+            if (configFile == null)
+            {
+                return;
+            }
 
             if (!TrustInfo.IsFullTrust)
             {
                 var document = new XmlDocument();
-                var xrs = new XmlReaderSettings { DtdProcessing = DtdProcessing.Ignore };
-                using (XmlReader xr = XmlReader.Create(configFile.ResolvedPath, xrs))
+                var xrs = new XmlReaderSettings { DtdProcessing = DtdProcessing.Ignore, CloseInput = true };
+                FileStream fs = File.OpenRead(configFile.ResolvedPath);
+                using (XmlReader xr = XmlReader.Create(fs, xrs))
                 {
                     document.Load(xr);
                 }
@@ -628,7 +640,7 @@ namespace Microsoft.Build.Tasks.Deployment.ManifestUtilities
         {
             int t1 = Environment.TickCount;
             bool isPartialTrust = !TrustInfo.IsFullTrust;
-            var targetPathList = new Dictionary<string, NGen<bool>>();
+            var targetPathList = new Dictionary<string, bool>();
 
             foreach (AssemblyReference assembly in AssemblyReferences)
             {

@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Collections.Generic;
@@ -8,12 +8,16 @@ using System.Globalization;
 using System.IO;
 using System.IO.Pipes;
 using System.Runtime.InteropServices;
+#if FEATURE_SECURITY_PRINCIPAL_WINDOWS
 using System.Security.Principal;
+#endif
 using System.Threading;
 
 using Microsoft.Build.Framework;
 using Microsoft.Build.Shared;
 using System.Reflection;
+using System.Security.Cryptography;
+using System.Text;
 
 #if !CLR2COMPATIBILITY
 using Microsoft.Build.Shared.Debugging;
@@ -75,17 +79,17 @@ namespace Microsoft.Build.Internal
         Arm64 = 128,
     }
 
-    internal readonly struct Handshake
+    internal class Handshake
     {
-        readonly int options;
-        readonly int salt;
-        readonly int fileVersionMajor;
-        readonly int fileVersionMinor;
-        readonly int fileVersionBuild;
-        readonly int fileVersionPrivate;
-        readonly int sessionId;
+        protected readonly int options;
+        protected readonly int salt;
+        protected readonly int fileVersionMajor;
+        protected readonly int fileVersionMinor;
+        protected readonly int fileVersionBuild;
+        protected readonly int fileVersionPrivate;
+        private readonly int sessionId;
 
-        internal Handshake(HandshakeOptions nodeType)
+        protected internal Handshake(HandshakeOptions nodeType)
         {
             const int handshakeVersion = (int)CommunicationsUtilities.handshakeVersion;
 
@@ -113,7 +117,7 @@ namespace Microsoft.Build.Internal
             return String.Format("{0} {1} {2} {3} {4} {5} {6}", options, salt, fileVersionMajor, fileVersionMinor, fileVersionBuild, fileVersionPrivate, sessionId);
         }
 
-        internal int[] RetrieveHandshakeComponents()
+        public virtual int[] RetrieveHandshakeComponents()
         {
             return new int[]
             {
@@ -126,12 +130,67 @@ namespace Microsoft.Build.Internal
                 CommunicationsUtilities.AvoidEndOfHandshakeSignal(sessionId)
             };
         }
+
+        public virtual string GetKey() => $"{options} {salt} {fileVersionMajor} {fileVersionMinor} {fileVersionBuild} {fileVersionPrivate} {sessionId}".ToString(CultureInfo.InvariantCulture);
+
+        public virtual byte? ExpectedVersionInFirstByte => CommunicationsUtilities.handshakeVersion;
+    }
+
+    internal sealed class ServerNodeHandshake : Handshake
+    {
+        /// <summary>
+        /// Caching computed hash.
+        /// </summary>
+        private string _computedHash = null;
+
+        public override byte? ExpectedVersionInFirstByte => null;
+
+        internal ServerNodeHandshake(HandshakeOptions nodeType)
+            : base(nodeType)
+        {
+        }
+
+        public override int[] RetrieveHandshakeComponents()
+        {
+            return new int[]
+            {
+                CommunicationsUtilities.AvoidEndOfHandshakeSignal(options),
+                CommunicationsUtilities.AvoidEndOfHandshakeSignal(salt),
+                CommunicationsUtilities.AvoidEndOfHandshakeSignal(fileVersionMajor),
+                CommunicationsUtilities.AvoidEndOfHandshakeSignal(fileVersionMinor),
+                CommunicationsUtilities.AvoidEndOfHandshakeSignal(fileVersionBuild),
+                CommunicationsUtilities.AvoidEndOfHandshakeSignal(fileVersionPrivate),
+            };
+        }
+
+        public override string GetKey()
+        {
+            return $"{options} {salt} {fileVersionMajor} {fileVersionMinor} {fileVersionBuild} {fileVersionPrivate}"
+                .ToString(CultureInfo.InvariantCulture);
+        }
+
+        /// <summary>
+        /// Computes Handshake stable hash string representing whole state of handshake.
+        /// </summary>
+        public string ComputeHash()
+        {
+            if (_computedHash == null)
+            {
+                var input = GetKey();
+                using var sha = SHA256.Create();
+                var bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(input));
+                _computedHash = Convert.ToBase64String(bytes)
+                    .Replace("/", "_")
+                    .Replace("=", string.Empty);
+            }
+            return _computedHash;
+        }
     }
 
     /// <summary>
     /// This class contains utility methods for the MSBuild engine.
     /// </summary>
-    static internal class CommunicationsUtilities
+    internal static class CommunicationsUtilities
     {
         /// <summary>
         /// Indicates to the NodeEndpoint that all the various parts of the Handshake have been sent.
@@ -176,28 +235,53 @@ namespace Microsoft.Build.Internal
         /// <summary>
         /// Gets or sets the node connection timeout.
         /// </summary>
-        static internal int NodeConnectionTimeout
+        internal static int NodeConnectionTimeout
         {
             get { return GetIntegerVariableOrDefault("MSBUILDNODECONNECTIONTIMEOUT", DefaultNodeConnectionTimeout); }
         }
 
+#if NETFRAMEWORK
         /// <summary>
-        /// Get environment block
+        /// Get environment block.
         /// </summary>
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-        internal static unsafe extern char* GetEnvironmentStrings();
+        internal static extern unsafe char* GetEnvironmentStrings();
 
         /// <summary>
-        /// Free environment block
+        /// Free environment block.
         /// </summary>
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-        internal static unsafe extern bool FreeEnvironmentStrings(char* pStrings);
+        internal static extern unsafe bool FreeEnvironmentStrings(char* pStrings);
 
         /// <summary>
-        /// Copied from the BCL implementation to eliminate some expensive security asserts.
+        /// Set environment variable P/Invoke.
+        /// </summary>
+        [DllImport("kernel32.dll", EntryPoint = "SetEnvironmentVariable", SetLastError = true, CharSet = CharSet.Unicode)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool SetEnvironmentVariableNative(string name, string value);
+
+        /// <summary>
+        /// Sets an environment variable using P/Invoke to workaround the .NET Framework BCL implementation.
+        /// </summary>
+        /// <remarks>
+        /// .NET Framework implementation of SetEnvironmentVariable checks the length of the value and throws an exception if
+        /// it's greater than or equal to 32,767 characters. This limitation does not exist on modern Windows or .NET.
+        /// </remarks>
+        internal static void SetEnvironmentVariable(string name, string value)
+        {
+            if (!SetEnvironmentVariableNative(name, value))
+            {
+                throw Marshal.GetExceptionForHR(Marshal.GetHRForLastWin32Error());
+            }
+        }
+
+        /// <summary>
         /// Returns key value pairs of environment variables in a new dictionary
         /// with a case-insensitive key comparer.
         /// </summary>
+        /// <remarks>
+        /// Copied from the BCL implementation to eliminate some expensive security asserts on .NET Framework.
+        /// </remarks>
         internal static Dictionary<string, string> GetEnvironmentVariables()
         {
 #if !CLR2COMPATIBILITY
@@ -209,107 +293,121 @@ namespace Microsoft.Build.Internal
 
             Dictionary<string, string> table = new Dictionary<string, string>(200, StringComparer.OrdinalIgnoreCase); // Razzle has 150 environment variables
 
-            if (NativeMethodsShared.IsWindows)
+            unsafe
             {
-                unsafe
+                char* pEnvironmentBlock = null;
+
+                try
                 {
-                    char* pEnvironmentBlock = null;
-
-                    try
+                    pEnvironmentBlock = GetEnvironmentStrings();
+                    if (pEnvironmentBlock == null)
                     {
-                        pEnvironmentBlock = GetEnvironmentStrings();
-                        if (pEnvironmentBlock == null)
+                        throw new OutOfMemoryException();
+                    }
+
+                    // Search for terminating \0\0 (two unicode \0's).
+                    char* pEnvironmentBlockEnd = pEnvironmentBlock;
+                    while (!(*pEnvironmentBlockEnd == '\0' && *(pEnvironmentBlockEnd + 1) == '\0'))
+                    {
+                        pEnvironmentBlockEnd++;
+                    }
+                    long stringBlockLength = pEnvironmentBlockEnd - pEnvironmentBlock;
+
+                    // Copy strings out, parsing into pairs and inserting into the table.
+                    // The first few environment variable entries start with an '='!
+                    // The current working directory of every drive (except for those drives
+                    // you haven't cd'ed into in your DOS window) are stored in the
+                    // environment block (as =C:=pwd) and the program's exit code is
+                    // as well (=ExitCode=00000000)  Skip all that start with =.
+                    // Read docs about Environment Blocks on MSDN's CreateProcess page.
+
+                    // Format for GetEnvironmentStrings is:
+                    // (=HiddenVar=value\0 | Variable=value\0)* \0
+                    // See the description of Environment Blocks in MSDN's
+                    // CreateProcess page (null-terminated array of null-terminated strings).
+                    // Note the =HiddenVar's aren't always at the beginning.
+                    for (int i = 0; i < stringBlockLength; i++)
+                    {
+                        int startKey = i;
+
+                        // Skip to key
+                        // On some old OS, the environment block can be corrupted.
+                        // Some lines will not have '=', so we need to check for '\0'.
+                        while (*(pEnvironmentBlock + i) != '=' && *(pEnvironmentBlock + i) != '\0')
                         {
-                            throw new OutOfMemoryException();
-                        }
-
-                        // Search for terminating \0\0 (two unicode \0's).
-                        char* pEnvironmentBlockEnd = pEnvironmentBlock;
-                        while (!(*pEnvironmentBlockEnd == '\0' && *(pEnvironmentBlockEnd + 1) == '\0'))
-                        {
-                            pEnvironmentBlockEnd++;
-                        }
-                        long stringBlockLength = pEnvironmentBlockEnd - pEnvironmentBlock;
-
-                        // Copy strings out, parsing into pairs and inserting into the table.
-                        // The first few environment variable entries start with an '='!
-                        // The current working directory of every drive (except for those drives
-                        // you haven't cd'ed into in your DOS window) are stored in the
-                        // environment block (as =C:=pwd) and the program's exit code is
-                        // as well (=ExitCode=00000000)  Skip all that start with =.
-                        // Read docs about Environment Blocks on MSDN's CreateProcess page.
-
-                        // Format for GetEnvironmentStrings is:
-                        // (=HiddenVar=value\0 | Variable=value\0)* \0
-                        // See the description of Environment Blocks in MSDN's
-                        // CreateProcess page (null-terminated array of null-terminated strings).
-                        // Note the =HiddenVar's aren't always at the beginning.
-                        for (int i = 0; i < stringBlockLength; i++)
-                        {
-                            int startKey = i;
-
-                            // Skip to key
-                            // On some old OS, the environment block can be corrupted.
-                            // Some lines will not have '=', so we need to check for '\0'.
-                            while (*(pEnvironmentBlock + i) != '=' && *(pEnvironmentBlock + i) != '\0')
-                            {
-                                i++;
-                            }
-
-                            if (*(pEnvironmentBlock + i) == '\0')
-                            {
-                                continue;
-                            }
-
-                            // Skip over environment variables starting with '='
-                            if (i - startKey == 0)
-                            {
-                                while (*(pEnvironmentBlock + i) != 0)
-                                {
-                                    i++;
-                                }
-
-                                continue;
-                            }
-
-                            string key = new string(pEnvironmentBlock, startKey, i - startKey);
                             i++;
+                        }
 
-                            // skip over '='
-                            int startValue = i;
+                        if (*(pEnvironmentBlock + i) == '\0')
+                        {
+                            continue;
+                        }
 
+                        // Skip over environment variables starting with '='
+                        if (i - startKey == 0)
+                        {
                             while (*(pEnvironmentBlock + i) != 0)
                             {
-                                // Read to end of this entry
                                 i++;
                             }
 
-                            string value = new string(pEnvironmentBlock, startValue, i - startValue);
+                            continue;
+                        }
 
-                            // skip over 0 handled by for loop's i++
-                            table[key] = value;
-                        }
-                    }
-                    finally
-                    {
-                        if (pEnvironmentBlock != null)
+                        string key = new string(pEnvironmentBlock, startKey, i - startKey);
+                        i++;
+
+                        // skip over '='
+                        int startValue = i;
+
+                        while (*(pEnvironmentBlock + i) != 0)
                         {
-                            FreeEnvironmentStrings(pEnvironmentBlock);
+                            // Read to end of this entry
+                            i++;
                         }
+
+                        string value = new string(pEnvironmentBlock, startValue, i - startValue);
+
+                        // skip over 0 handled by for loop's i++
+                        table[key] = value;
                     }
                 }
-            }
-            else
-            {
-                var vars = Environment.GetEnvironmentVariables();
-                foreach (var key in vars.Keys)
+                finally
                 {
-                    table[(string) key] = (string) vars[key];
+                    if (pEnvironmentBlock != null)
+                    {
+                        FreeEnvironmentStrings(pEnvironmentBlock);
+                    }
                 }
             }
 
             return table;
         }
+
+#else // NETFRAMEWORK
+
+        /// <summary>
+        /// Sets an environment variable using <see cref="Environment.SetEnvironmentVariable(string,string)" />.
+        /// </summary>
+        internal static void SetEnvironmentVariable(string name, string value)
+            => Environment.SetEnvironmentVariable(name, value);
+
+        /// <summary>
+        /// Returns key value pairs of environment variables in a new dictionary
+        /// with a case-insensitive key comparer.
+        /// </summary>
+        internal static Dictionary<string, string> GetEnvironmentVariables()
+        {
+            var vars = Environment.GetEnvironmentVariables();
+
+            Dictionary<string, string> table = new Dictionary<string, string>(vars.Count, StringComparer.OrdinalIgnoreCase);
+            foreach (var key in vars.Keys)
+            {
+                table[(string)key] = (string)vars[key];
+            }
+            return table;
+        }
+#endif // NETFRAMEWORK
 
         /// <summary>
         /// Updates the environment to match the provided dictionary.
@@ -318,19 +416,23 @@ namespace Microsoft.Build.Internal
         {
             if (newEnvironment != null)
             {
-                // First, empty out any new variables
-                foreach (KeyValuePair<string, string> entry in CommunicationsUtilities.GetEnvironmentVariables())
+                // First, delete all no longer set variables
+                Dictionary<string, string> currentEnvironment = GetEnvironmentVariables();
+                foreach (KeyValuePair<string, string> entry in currentEnvironment)
                 {
                     if (!newEnvironment.ContainsKey(entry.Key))
                     {
-                        Environment.SetEnvironmentVariable(entry.Key, null);
+                        SetEnvironmentVariable(entry.Key, null);
                     }
                 }
 
-                // Then, make sure the old ones have their old values.
+                // Then, make sure the new ones have their new values.
                 foreach (KeyValuePair<string, string> entry in newEnvironment)
                 {
-                    Environment.SetEnvironmentVariable(entry.Key, entry.Value);
+                    if (!currentEnvironment.TryGetValue(entry.Key, out string currentValue) || currentValue != entry.Value)
+                    {
+                        SetEnvironmentVariable(entry.Key, entry.Value);
+                    }
                 }
             }
         }
@@ -363,18 +465,25 @@ namespace Microsoft.Build.Internal
             stream.Write(bytes, 0, bytes.Length);
         }
 
-        internal static void ReadEndOfHandshakeSignal(this PipeStream stream, bool isProvider
-#if NETCOREAPP2_1_OR_GREATER || MONO
+#pragma warning disable SA1111, SA1009 // Closing parenthesis should be on line of last parameter
+        internal static void ReadEndOfHandshakeSignal(
+            this PipeStream stream,
+            bool isProvider
+#if NETCOREAPP2_1_OR_GREATER
             , int timeout
 #endif
             )
+#pragma warning restore SA1111, SA1009 // Closing parenthesis should be on line of last parameter
         {
             // Accept only the first byte of the EndOfHandshakeSignal
-            int valueRead = stream.ReadIntForHandshake(null
-#if NETCOREAPP2_1_OR_GREATER || MONO
+#pragma warning disable SA1111, SA1009 // Closing parenthesis should be on line of last parameter
+            int valueRead = stream.ReadIntForHandshake(
+                byteToAccept: null
+#if NETCOREAPP2_1_OR_GREATER
             , timeout
 #endif
                 );
+#pragma warning restore SA1111, SA1009 // Closing parenthesis should be on line of last parameter
 
             if (valueRead != EndOfHandshakeSignal)
             {
@@ -390,19 +499,21 @@ namespace Microsoft.Build.Internal
             }
         }
 
+#pragma warning disable SA1111, SA1009 // Closing parenthesis should be on line of last parameter
         /// <summary>
         /// Extension method to read a series of bytes from a stream.
         /// If specified, leading byte matches one in the supplied array if any, returns rejection byte and throws IOException.
         /// </summary>
         internal static int ReadIntForHandshake(this PipeStream stream, byte? byteToAccept
-#if NETCOREAPP2_1_OR_GREATER || MONO
+#if NETCOREAPP2_1_OR_GREATER
             , int timeout
 #endif
             )
+#pragma warning restore SA1111, SA1009 // Closing parenthesis should be on line of last parameter
         {
             byte[] bytes = new byte[4];
 
-#if NETCOREAPP2_1_OR_GREATER || MONO
+#if NETCOREAPP2_1_OR_GREATER
             if (!NativeMethodsShared.IsWindows)
             {
                 // Enforce a minimum timeout because the Windows code can pass
@@ -549,7 +660,7 @@ namespace Microsoft.Build.Internal
             switch (clrVersion)
             {
                 case 0:
-                    // Not a taskhost, runtime must match
+                // Not a taskhost, runtime must match
                 case 4:
                     // Default for MSBuild running on .NET Framework 4,
                     // not represented in handshake
@@ -609,9 +720,66 @@ namespace Microsoft.Build.Internal
         /// <summary>
         /// Writes trace information to a log file
         /// </summary>
+        internal static void Trace<T>(string format, T arg0)
+        {
+            Trace(nodeId: -1, format, arg0);
+        }
+
+        /// <summary>
+        /// Writes trace information to a log file
+        /// </summary>
+        internal static void Trace<T>(int nodeId, string format, T arg0)
+        {
+            if (s_trace)
+            {
+                TraceCore(nodeId, string.Format(format, arg0));
+            }
+        }
+
+        /// <summary>
+        /// Writes trace information to a log file
+        /// </summary>
+        internal static void Trace<T0, T1>(string format, T0 arg0, T1 arg1)
+        {
+            Trace(nodeId: -1, format, arg0, arg1);
+        }
+
+        /// <summary>
+        /// Writes trace information to a log file
+        /// </summary>
+        internal static void Trace<T0, T1>(int nodeId, string format, T0 arg0, T1 arg1)
+        {
+            if (s_trace)
+            {
+                TraceCore(nodeId, string.Format(format, arg0, arg1));
+            }
+        }
+
+        /// <summary>
+        /// Writes trace information to a log file
+        /// </summary>
+        internal static void Trace<T0, T1, T2>(string format, T0 arg0, T1 arg1, T2 arg2)
+        {
+            Trace(nodeId: -1, format, arg0, arg1, arg2);
+        }
+
+        /// <summary>
+        /// Writes trace information to a log file
+        /// </summary>
+        internal static void Trace<T0, T1, T2>(int nodeId, string format, T0 arg0, T1 arg1, T2 arg2)
+        {
+            if (s_trace)
+            {
+                TraceCore(nodeId, string.Format(format, arg0, arg1, arg2));
+            }
+        }
+
+        /// <summary>
+        /// Writes trace information to a log file
+        /// </summary>
         internal static void Trace(string format, params object[] args)
         {
-            Trace(/* nodeId */ -1, format, args);
+            Trace(nodeId: -1, format, args);
         }
 
         /// <summary>
@@ -621,55 +789,64 @@ namespace Microsoft.Build.Internal
         {
             if (s_trace)
             {
-                lock (s_traceLock)
-                {
-                    if (s_debugDumpPath == null)
-                    {
-                        s_debugDumpPath =
+                string message = string.Format(CultureInfo.CurrentCulture, format, args);
+                TraceCore(nodeId, message);
+            }
+        }
+
+        internal static void Trace(int nodeId, string message)
+        {
+            if (s_trace)
+            {
+                TraceCore(nodeId, message);
+            }
+        }
+
+        /// <summary>
+        /// Writes trace information to a log file
+        /// </summary>
+        private static void TraceCore(int nodeId, string message)
+        {
+            lock (s_traceLock)
+            {
+                s_debugDumpPath ??=
 #if CLR2COMPATIBILITY
-                        Environment.GetEnvironmentVariable("MSBUILDDEBUGPATH");
+                    Environment.GetEnvironmentVariable("MSBUILDDEBUGPATH");
 #else
-                        ChangeWaves.AreFeaturesEnabled(ChangeWaves.Wave17_0)
-                            ? DebugUtils.DebugPath
-                            : Environment.GetEnvironmentVariable("MSBUILDDEBUGPATH");
+                        DebugUtils.DebugPath;
 #endif
 
-                        if (String.IsNullOrEmpty(s_debugDumpPath))
-                        {
-                            s_debugDumpPath = Path.GetTempPath();
-                        }
-                        else
-                        {
-                            Directory.CreateDirectory(s_debugDumpPath);
-                        }
-                    }
+                if (String.IsNullOrEmpty(s_debugDumpPath))
+                {
+                    s_debugDumpPath = FileUtilities.TempFileDirectory;
+                }
+                else
+                {
+                    Directory.CreateDirectory(s_debugDumpPath);
+                }
 
-                    try
+                try
+                {
+                    string fileName = @"MSBuild_CommTrace_PID_{0}";
+                    if (nodeId != -1)
                     {
-                        string fileName = @"MSBuild_CommTrace_PID_{0}";
-                        if (nodeId != -1)
-                        {
-                            fileName += "_node_" + nodeId;
-                        }
-
-                        fileName += ".txt";
-
-                        using (StreamWriter file =
-                               FileUtilities.OpenWrite(String.Format(CultureInfo.CurrentCulture, Path.Combine(s_debugDumpPath, fileName), Process.GetCurrentProcess().Id, nodeId),
-                                   append: true))
-                        {
-                            string message = String.Format(CultureInfo.CurrentCulture, format, args);
-                            long now = DateTime.UtcNow.Ticks;
-                            float millisecondsSinceLastLog = (float)(now - s_lastLoggedTicks) / 10000L;
-                            s_lastLoggedTicks = now;
-                            file.WriteLine("{0} (TID {1}) {2,15} +{3,10}ms: {4}", Thread.CurrentThread.Name, Thread.CurrentThread.ManagedThreadId, now, millisecondsSinceLastLog,
-                                message);
-                        }
+                        fileName += "_node_" + nodeId;
                     }
-                    catch (IOException)
+
+                    fileName += ".txt";
+
+                    using (StreamWriter file = FileUtilities.OpenWrite(
+                        String.Format(CultureInfo.CurrentCulture, Path.Combine(s_debugDumpPath, fileName), Process.GetCurrentProcess().Id, nodeId), append: true))
                     {
-                        // Ignore
+                        long now = DateTime.UtcNow.Ticks;
+                        float millisecondsSinceLastLog = (float)(now - s_lastLoggedTicks) / 10000L;
+                        s_lastLoggedTicks = now;
+                        file.WriteLine("{0} (TID {1}) {2,15} +{3,10}ms: {4}", Thread.CurrentThread.Name, Thread.CurrentThread.ManagedThreadId, now, millisecondsSinceLastLog, message);
                     }
+                }
+                catch (IOException)
+                {
+                    // Ignore
                 }
             }
         }

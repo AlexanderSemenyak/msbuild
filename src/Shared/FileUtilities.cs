@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 #if !CLR2COMPATIBILITY
@@ -45,6 +45,10 @@ namespace Microsoft.Build.Shared
         /// </summary>
         internal static string cacheDirectory = null;
 
+#if CLR2COMPATIBILITY
+        internal static string TempFileDirectory => Path.GetTempPath();
+#endif
+
         /// <summary>
         /// FOR UNIT TESTS ONLY
         /// Clear out the static variable used for the cache directory so that tests that
@@ -56,6 +60,8 @@ namespace Microsoft.Build.Shared
         }
 
         internal static readonly StringComparison PathComparison = GetIsFileSystemCaseSensitive() ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+
+        internal static readonly StringComparer PathComparer = GetIsFileSystemCaseSensitive() ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase;
 
         /// <summary>
         /// Determines whether the file system is case sensitive.
@@ -122,7 +128,7 @@ namespace Microsoft.Build.Shared
         {
             if (cacheDirectory == null)
             {
-                cacheDirectory = Path.Combine(Path.GetTempPath(), String.Format(CultureInfo.CurrentUICulture, "MSBuild{0}-{1}", Process.GetCurrentProcess().Id, AppDomain.CurrentDomain.Id));
+                cacheDirectory = Path.Combine(TempFileDirectory, String.Format(CultureInfo.CurrentUICulture, "MSBuild{0}-{1}", Process.GetCurrentProcess().Id, AppDomain.CurrentDomain.Id));
             }
 
             return cacheDirectory;
@@ -174,6 +180,8 @@ namespace Microsoft.Build.Shared
             try
             {
                 string testFilePath = Path.Combine(directory, $"MSBuild_{Guid.NewGuid().ToString("N")}_testFile.txt");
+                FileInfo file = new(testFilePath);
+                file.Directory.Create(); // If the directory already exists, this method does nothing.
                 File.WriteAllText(testFilePath, $"MSBuild process {Process.GetCurrentProcess().Id} successfully wrote to file.");
                 File.Delete(testFilePath);
                 return true;
@@ -368,7 +376,11 @@ namespace Microsoft.Build.Shared
             if (fullPath != null)
             {
                 int i = fullPath.Length;
-                while (i > 0 && fullPath[--i] != Path.DirectorySeparatorChar && fullPath[i] != Path.AltDirectorySeparatorChar);
+                while (i > 0 && fullPath[--i] != Path.DirectorySeparatorChar && fullPath[i] != Path.AltDirectorySeparatorChar)
+                {
+                    ;
+                }
+
                 return FixFilePath(fullPath.Substring(0, i));
             }
             return null;
@@ -562,6 +574,26 @@ namespace Microsoft.Build.Shared
             // Find the part of the name we want to check, that is remove quotes, if present
             bool shouldAdjust = newValue.IndexOf('/') != -1 && LooksLikeUnixFilePath(RemoveQuotes(newValue), baseDirectory);
             return shouldAdjust ? newValue.ToString() : value;
+        }
+
+        /// <summary>
+        /// Gets the path value that is associated with the specified key in a dictionary with <see cref="string"/> values.
+        /// Normalizes the value as a path.
+        /// </summary>
+        /// <param name="dictionary">The dictionary to search.</param>
+        /// <param name="key">The key to locate.</param>
+        /// <param name="value">When this method returns, the value associated with the specified key normalized as a path, if the key is found; otherwise <see langword="null"/>.</param>
+        /// <returns><see langword="true"/> if the dictionary contains an element that has the specified key; otherwise, <see langword="false"/>.</returns>
+        /// <remarks>Use this method to get paths from dictionaries of properties whose default values may contain backslashes.</remarks>
+        internal static bool TryGetPathValue<TKey>(this IReadOnlyDictionary<TKey, string> dictionary, TKey key, out string value)
+        {
+            bool result = dictionary.TryGetValue(key, out value);
+            if (result)
+            {
+                value = NormalizePath(value);
+            }
+
+            return result;
         }
 
         /// <summary>
@@ -1090,7 +1122,9 @@ namespace Microsoft.Build.Shared
         private static bool HasExtension(string filename, string extension)
         {
             if (String.IsNullOrEmpty(filename))
+            {
                 return false;
+            }
 
             return filename.EndsWith(extension, PathComparison);
         }
@@ -1223,7 +1257,9 @@ namespace Microsoft.Build.Shared
         internal static string GetFolderAbove(string path, int count = 1)
         {
             if (count < 1)
+            {
                 return path;
+            }
 
             var parent = Directory.GetParent(path);
 
@@ -1350,8 +1386,15 @@ namespace Microsoft.Build.Shared
                 }
 
                 // uppercase both chars - notice that we need just one compare per char
-                if ((uint)(charA - 'a') <= (uint)('z' - 'a')) charA -= 0x20;
-                if ((uint)(charB - 'a') <= (uint)('z' - 'a')) charB -= 0x20;
+                if ((uint)(charA - 'a') <= (uint)('z' - 'a'))
+                {
+                    charA -= 0x20;
+                }
+
+                if ((uint)(charB - 'a') <= (uint)('z' - 'a'))
+                {
+                    charB -= 0x20;
+                }
 
                 // Set path delimiters the same
                 if (charA == '\\')
@@ -1435,7 +1478,7 @@ namespace Microsoft.Build.Shared
             while (lookInDirectory != null);
 
             // When we didn't find the location, then return an empty string
-            return String.Empty;
+            return string.Empty;
         }
 
         /// <summary>
@@ -1462,7 +1505,7 @@ namespace Microsoft.Build.Shared
 
         internal static void EnsureDirectoryExists(string directoryPath)
         {
-            if (directoryPath != null && !DefaultFileSystem.DirectoryExists(directoryPath))
+            if (!string.IsNullOrEmpty(directoryPath) && !DefaultFileSystem.DirectoryExists(directoryPath))
             {
                 Directory.CreateDirectory(directoryPath);
             }

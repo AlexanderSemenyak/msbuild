@@ -1,18 +1,18 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
-using System.Collections.Generic;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
+using Microsoft.Build.BackEnd.Components.Caching;
 using Microsoft.Build.Execution;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Internal;
 using Microsoft.Build.Shared;
 using ILoggingService = Microsoft.Build.BackEnd.Logging.ILoggingService;
 using NodeLoggingContext = Microsoft.Build.BackEnd.Logging.NodeLoggingContext;
-using Microsoft.Build.BackEnd.Components.Caching;
 
 #nullable disable
 
@@ -336,18 +336,7 @@ namespace Microsoft.Build.BackEnd
                 NativeMethodsShared.SetCurrentDirectory(_savedCurrentDirectory);
 
                 // Restore the original environment.
-                foreach (KeyValuePair<string, string> entry in CommunicationsUtilities.GetEnvironmentVariables())
-                {
-                    if (!_savedEnvironment.ContainsKey(entry.Key))
-                    {
-                        Environment.SetEnvironmentVariable(entry.Key, null);
-                    }
-                }
-
-                foreach (KeyValuePair<string, string> entry in _savedEnvironment)
-                {
-                    Environment.SetEnvironmentVariable(entry.Key, entry.Value);
-                }
+                CommunicationsUtilities.SetEnvironment(_savedEnvironment);
             }
 
             exception = _shutdownException;

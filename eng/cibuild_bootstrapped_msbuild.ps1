@@ -4,6 +4,7 @@ Param(
   [string] $configuration = "Debug",
   [switch] $prepareMachine,
   [bool] $buildStage1 = $True,
+  [bool] $onlyDocChanged = 0,
   [Parameter(ValueFromRemainingArguments=$true)][String[]]$properties
 )
 
@@ -80,19 +81,12 @@ try {
     $buildToolPath = Join-Path $bootstrapRoot "net472\MSBuild\Current\Bin\MSBuild.exe"
     $buildToolCommand = "";
     $buildToolFramework = "net472"
-
-    if ($configuration -eq "Debug-MONO" -or $configuration -eq "Release-MONO")
-    {
-      # Copy MSBuild.dll to MSBuild.exe so we can run it without a host
-      $sourceDll = Join-Path $bootstrapRoot "net472\MSBuild\Current\Bin\MSBuild.dll"
-      Copy-Item -Path $sourceDll -Destination $msbuildToUse
-    }
   }
   else
   {
     $buildToolPath = $dotnetExePath
-    $buildToolCommand = Join-Path $bootstrapRoot "net6.0\MSBuild\MSBuild.dll"
-    $buildToolFramework = "netcoreapp3.1"
+    $buildToolCommand = Join-Path $bootstrapRoot "net8.0\MSBuild\MSBuild.dll"
+    $buildToolFramework = "net8.0"
   }
 
   # Use separate artifacts folder for stage 2
@@ -121,9 +115,13 @@ try {
 
   # When using bootstrapped MSBuild:
   # - Turn off node reuse (so that bootstrapped MSBuild processes don't stay running and lock files)
-  # - Do run tests
-  # - Don't try to create a bootstrap deployment
-  & $PSScriptRoot\Common\Build.ps1 -restore -build -test -ci /p:CreateBootstrap=false /nr:false @properties
+  # - Create bootstrap environment as it's required when also running tests
+  if ($onlyDocChanged) {
+    & $PSScriptRoot\Common\Build.ps1 -restore -build -ci /p:CreateBootstrap=false /nr:false @properties
+  }
+  else {
+    & $PSScriptRoot\Common\Build.ps1 -restore -build -test -ci /p:CreateBootstrap=true /nr:false @properties
+  }
 
   exit $lastExitCode
 }

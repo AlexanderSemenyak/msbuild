@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 #nullable disable
 
@@ -31,11 +31,11 @@ namespace Microsoft.Build.Framework
         /// An <see cref="SdkResult" /> containing the resolved SDKs or associated error / reason
         /// the SDK could not be resolved.  Return <see langword="null"/> if the resolver is not
         /// applicable for a particular <see cref="SdkReference"/>.
-        /// </returns>   
+        /// </returns>
         /// <remarks>
         ///  Note: You must use <see cref="SdkResultFactory"/> to return a result.
         ///  </remarks>
-        /// 
+        ///
         public abstract SdkResult Resolve(SdkReference sdkReference,
                                           SdkResolverContext resolverContext,
                                           SdkResultFactory factory);

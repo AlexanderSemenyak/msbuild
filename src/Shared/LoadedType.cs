@@ -1,11 +1,9 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using Microsoft.Build.BackEnd;
 using Microsoft.Build.Execution;
 using Microsoft.Build.Framework;
 
@@ -28,7 +26,8 @@ namespace Microsoft.Build.Shared
         /// <param name="assemblyLoadInfo">Information used to load the assembly</param>
         /// <param name="loadedAssembly">The assembly which has been loaded, if any</param>
         /// <param name="loadedViaMetadataLoadContext">Whether this type was loaded via MetadataLoadContext</param>
-        internal LoadedType(Type type, AssemblyLoadInfo assemblyLoadInfo, Assembly loadedAssembly, bool loadedViaMetadataLoadContext = false)
+        /// <param name="iTaskItemType">type of an ITaskItem</param>
+        internal LoadedType(Type type, AssemblyLoadInfo assemblyLoadInfo, Assembly loadedAssembly, Type iTaskItemType, bool loadedViaMetadataLoadContext = false)
         {
             ErrorUtilities.VerifyThrow(type != null, "We must have the type.");
             ErrorUtilities.VerifyThrow(assemblyLoadInfo != null, "We must have the assembly the type was loaded from.");
@@ -43,8 +42,10 @@ namespace Microsoft.Build.Shared
             LoadedAssembly = loadedAssembly;
 
 #if !NET35
-            // Properties set in this block aren't used by TaskHosts. Properties below are only used on the NodeProvider side to get information about the
+            // This block is reflection only loaded type implementation. Net35 does not support it, and fall backs to former implementation in #else
+            // Property `Properties` set in this block aren't used by TaskHosts. Properties below are only used on the NodeProvider side to get information about the
             // properties and reflect over them without needing them to be fully loaded, so it also isn't need for TaskHosts.
+
             // MetadataLoadContext-loaded Type objects don't support testing for inherited attributes, so we manually walk the BaseType chain.
             Type t = type;
             while (t is not null)
@@ -90,8 +91,6 @@ namespace Microsoft.Build.Shared
                     }
                 }
 
-                bool isAssignableToITask = false;
-
                 // Check whether it's assignable to ITaskItem or ITaskItem[]. Simplify to just checking for ITaskItem.
                 Type pt = props[i].PropertyType;
                 if (pt.IsArray)
@@ -99,20 +98,7 @@ namespace Microsoft.Build.Shared
                     pt = pt.GetElementType();
                 }
 
-                // Microsoft.Build.Framework.ITaskItem is different when loaded normally versus via MetadataLoadContext. This is the only reliable way to see
-                // whether this property derives from ITaskItem.
-                while (pt is not null)
-                {
-                    if (pt.FullName.Equals("Microsoft.Build.Framework.ITaskItem"))
-                    {
-                        isAssignableToITask = true;
-                        break;
-                    }
-                    else
-                    {
-                        pt = pt.BaseType;
-                    }
-                }
+                bool isAssignableToITask = iTaskItemType.IsAssignableFrom(pt);
 
                 Properties[i] = new ReflectableTaskPropertyInfo(props[i], outputAttribute, requiredAttribute, isAssignableToITask);
                 if (loadedViaMetadataLoadContext)
@@ -120,6 +106,11 @@ namespace Microsoft.Build.Shared
                     PropertyAssemblyQualifiedNames[i] = Properties[i].PropertyType.AssemblyQualifiedName;
                 }
             }
+#else
+            // For v3.5 fallback to old full type approach, as oppose to reflection only
+            HasLoadInSeparateAppDomainAttribute = this.Type.GetTypeInfo().IsDefined(typeof(LoadInSeparateAppDomainAttribute), true /* inherited */);
+            HasSTAThreadAttribute = this.Type.GetTypeInfo().IsDefined(typeof(RunInSTAAttribute), true /* inherited */);
+            IsMarshalByRef = this.Type.IsMarshalByRef;
 #endif
         }
 

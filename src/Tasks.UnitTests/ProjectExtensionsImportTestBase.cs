@@ -1,9 +1,11 @@
-﻿// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-using Microsoft.Build.Evaluation;
 using System;
 using System.IO;
 using System.Linq;
+using Microsoft.Build.Evaluation;
+using Microsoft.Build.Shared;
 using Shouldly;
 using Xunit;
 
@@ -65,6 +67,57 @@ namespace Microsoft.Build.UnitTests
             Directory.Exists(projectExtensionsPath).ShouldBeFalse();
             project.GetPropertyValue(PropertyNameToEnableImport).ShouldBe("true");
             project.GetPropertyValue(PropertyNameToSignalImportSucceeded).ShouldBeEmpty();
+        }
+
+        [Fact]
+        public void DoesNotImportProjectIfRestoring()
+        {
+            ObjectModelHelpers.CreateFileInTempProjectDirectory(ImportProjectPath, BasicProjectImportContents);
+
+            Project project = ObjectModelHelpers.LoadProjectFileInTempProjectDirectory(ObjectModelHelpers.CreateFileInTempProjectDirectory(_projectRelativePath, $@"
+                <Project DefaultTargets=`Build` ToolsVersion=`msbuilddefaulttoolsversion`>
+                    <PropertyGroup>
+                        <{MSBuildConstants.MSBuildIsRestoring}>true</{MSBuildConstants.MSBuildIsRestoring}>
+                    </PropertyGroup>
+
+                    <Import Project=`$(MSBuildBinPath)\Microsoft.Common.props` />
+
+                    <Import Project=`$(MSBuildBinPath)\Microsoft.CSharp.targets` />
+                </Project>
+            "));
+
+            string projectExtensionsPath = project.GetPropertyValue("MSBuildProjectExtensionsPath");
+
+            projectExtensionsPath.ShouldNotBeNullOrWhiteSpace();
+            Directory.Exists(projectExtensionsPath).ShouldBeTrue();
+            project.GetPropertyValue(PropertyNameToEnableImport).ShouldBe(bool.FalseString, StringCompareShould.IgnoreCase);
+            project.GetPropertyValue(PropertyNameToSignalImportSucceeded).ShouldBeEmpty();
+        }
+
+        [Fact]
+        public void ImportsProjectIfRestoringAndExplicitlySet()
+        {
+            ObjectModelHelpers.CreateFileInTempProjectDirectory(ImportProjectPath, BasicProjectImportContents);
+
+            Project project = ObjectModelHelpers.LoadProjectFileInTempProjectDirectory(ObjectModelHelpers.CreateFileInTempProjectDirectory(_projectRelativePath, $@"
+                <Project DefaultTargets=`Build` ToolsVersion=`msbuilddefaulttoolsversion`>
+                    <PropertyGroup>
+                        <{PropertyNameToEnableImport}>true</{PropertyNameToEnableImport}>
+                        <{MSBuildConstants.MSBuildIsRestoring}>true</{MSBuildConstants.MSBuildIsRestoring}>
+                    </PropertyGroup>
+
+                    <Import Project=`$(MSBuildBinPath)\Microsoft.Common.props` />
+
+                    <Import Project=`$(MSBuildBinPath)\Microsoft.CSharp.targets` />
+                </Project>
+            "));
+
+            string projectExtensionsPath = project.GetPropertyValue("MSBuildProjectExtensionsPath");
+
+            projectExtensionsPath.ShouldNotBeNullOrWhiteSpace();
+            Directory.Exists(projectExtensionsPath).ShouldBeTrue();
+            project.GetPropertyValue(PropertyNameToEnableImport).ShouldBe(bool.TrueString, StringCompareShould.IgnoreCase);
+            project.GetPropertyValue(PropertyNameToSignalImportSucceeded).ShouldBe(bool.TrueString, StringCompareShould.IgnoreCase);
         }
 
         /// <summary>

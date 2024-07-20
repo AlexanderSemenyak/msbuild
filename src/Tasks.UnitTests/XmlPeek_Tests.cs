@@ -1,17 +1,22 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-using Microsoft.Build.Tasks;
-using Microsoft.Build.Utilities;
 using System;
 using System.IO;
+
+using Microsoft.Build.Evaluation;
+using Microsoft.Build.Tasks;
+using Microsoft.Build.Utilities;
+
+using Shouldly;
+
 using Xunit;
 
 #nullable disable
 
 namespace Microsoft.Build.UnitTests
 {
-    sealed public class XmlPeek_Tests
+    public sealed class XmlPeek_Tests
     {
         private string _xmlFileWithNs = @"<?xml version='1.0' encoding='utf-8'?>
 
@@ -314,6 +319,17 @@ namespace Microsoft.Build.UnitTests
 
             // Verify that the task was indeed found.
             logger.AssertLogDoesntContain("MSB4036");
+        }
+
+        [Fact]
+        public void PeekWithNoParameters()
+        {
+            MockLogger log = new();
+            Project project = ObjectModelHelpers.CreateInMemoryProject(@"<Project><Target Name=""Test""><XmlPeek /></Target></Project>", log);
+
+            project.Build().ShouldBeFalse();
+            log.AssertLogContains("MSB4044");
+            log.AssertLogContains("\"Query\"");
         }
 
         private void Prepare(string xmlFile, out string xmlInputPath)

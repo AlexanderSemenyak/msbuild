@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
 #if FEATURE_WIN32_REGISTRY
 
 using System;
@@ -9,10 +10,10 @@ using Microsoft.Build.Collections;
 using Microsoft.Build.Evaluation;
 using Microsoft.Build.Execution;
 using Microsoft.Build.Internal;
-using Microsoft.Build.Shared;
 using Microsoft.Win32;
 
 using Xunit;
+using Xunit.NetCore.Extensions;
 
 using InvalidToolsetDefinitionException = Microsoft.Build.Exceptions.InvalidToolsetDefinitionException;
 
@@ -23,7 +24,6 @@ namespace Microsoft.Build.UnitTests.Definition
     /// <summary>
     /// Unit test for ToolsetRegistryReader class
     /// </summary>
-    [PlatformSpecific(TestPlatforms.Windows)]
     public class ToolsetRegistryReader_Tests : IDisposable
     {
         // The registry key that is passed as the baseKey parameter to the ToolsetRegistryReader class
@@ -78,7 +78,7 @@ namespace Microsoft.Build.UnitTests.Definition
         /// <summary>
         /// If the base key has been deleted, then we just don't get any information (no exception)
         /// </summary>
-        [Fact]
+        [WindowsOnlyFact]
         public void ReadRegistry_DeletedKey()
         {
             DeleteTestRegistryKey();
@@ -102,7 +102,8 @@ namespace Microsoft.Build.UnitTests.Definition
             {
                 return; // "TODO: under Unix this runs out of stack. Investigate"
             }
-            ToolsetReader reader = new ToolsetRegistryReader(new ProjectCollection().EnvironmentProperties, new PropertyDictionary<ProjectPropertyInstance>());  // we don't use the test registry key because we want to verify the install
+            using var collection = new ProjectCollection();
+            ToolsetReader reader = new ToolsetRegistryReader(collection.EnvironmentProperties, new PropertyDictionary<ProjectPropertyInstance>());  // we don't use the test registry key because we want to verify the install
 
             Dictionary<string, Toolset> values = new Dictionary<string, Toolset>(StringComparer.OrdinalIgnoreCase);
             string msbuildOverrideTasksPath;
@@ -118,10 +119,12 @@ namespace Microsoft.Build.UnitTests.Definition
         /// <summary>
         /// Tests we handle no default toolset specified in the registry
         /// </summary>
-        [Fact]
+        [WindowsOnlyFact]
         public void DefaultValueInRegistryDoesNotExist()
         {
-            ToolsetReader reader = new ToolsetRegistryReader(new ProjectCollection().EnvironmentProperties, new PropertyDictionary<ProjectPropertyInstance>(), new MockRegistryKey(testRegistryPath, "3.5" /* fail to find subkey 3.5 */));
+            using var collection = new ProjectCollection();
+            using var registry = new MockRegistryKey(testRegistryPath, "3.5" /* fail to find subkey 3.5 */);
+            ToolsetReader reader = new ToolsetRegistryReader(collection.EnvironmentProperties, new PropertyDictionary<ProjectPropertyInstance>(), registry);
 
             Dictionary<string, Toolset> values = new Dictionary<string, Toolset>(StringComparer.OrdinalIgnoreCase);
 
@@ -137,7 +140,7 @@ namespace Microsoft.Build.UnitTests.Definition
         /// <summary>
         /// The base key exists but contains no subkey or values: this is okay
         /// </summary>
-        [Fact]
+        [WindowsOnlyFact]
         public void ReadRegistry_NoSubkeyNoValues()
         {
             ToolsetReader reader = GetStandardRegistryReader();
@@ -154,7 +157,7 @@ namespace Microsoft.Build.UnitTests.Definition
         /// Here we validate that MSBuild does not fail when there are unrecognized values underneath
         /// the ToolsVersion key.
         /// </summary>
-        [Fact]
+        [WindowsOnlyFact]
         public void ReadRegistry_NoSubkeysOnlyValues()
         {
             _toolsVersionsRegistryKey.SetValue("Name1", "Value1");
@@ -173,7 +176,7 @@ namespace Microsoft.Build.UnitTests.Definition
         /// <summary>
         /// Basekey has only 1 subkey
         /// </summary>
-        [Fact]
+        [WindowsOnlyFact]
         public void ReadRegistry_OnlyOneSubkey()
         {
             string xdir = NativeMethodsShared.IsWindows ? "c:\\xxx" : "/xxx";
@@ -196,7 +199,7 @@ namespace Microsoft.Build.UnitTests.Definition
         /// <summary>
         /// Basic case
         /// </summary>
-        [Fact]
+        [WindowsOnlyFact]
         public void ReadRegistry_Basic()
         {
             string xdir = NativeMethodsShared.IsWindows ? "c:\\xxx" : "/xxx";
@@ -226,7 +229,7 @@ namespace Microsoft.Build.UnitTests.Definition
         /// <summary>
         /// baseKey contains some non-String data
         /// </summary>
-        [Fact]
+        [WindowsOnlyFact]
         public void ReadRegistry_NonStringData()
         {
             Assert.Throws<InvalidToolsetDefinitionException>(() =>
@@ -244,8 +247,7 @@ namespace Microsoft.Build.UnitTests.Definition
 
                 Dictionary<string, Toolset> values = new Dictionary<string, Toolset>(StringComparer.OrdinalIgnoreCase);
                 reader.ReadToolsets(values, new PropertyDictionary<ProjectPropertyInstance>(), new PropertyDictionary<ProjectPropertyInstance>(), false, out msbuildOverrideTasksPath, out defaultOverrideToolsVersion);
-            }
-           );
+            });
         }
         /// <summary>
         /// Registry has the following structure
@@ -256,7 +258,7 @@ namespace Microsoft.Build.UnitTests.Definition
         ///        SubKey2
         ///        SubKey3
         /// </summary>
-        [Fact]
+        [WindowsOnlyFact]
         public void ReadRegistry_HasSubToolsets()
         {
             string xdir = NativeMethodsShared.IsWindows ? "c:\\xxx" : "/xxx";
@@ -312,7 +314,7 @@ namespace Microsoft.Build.UnitTests.Definition
         ///        SubKey1
         ///            SubSubKey1
         /// </summary>
-        [Fact]
+        [WindowsOnlyFact]
         public void ReadRegistry_IgnoreSubToolsetSubKeys()
         {
             string xdir = NativeMethodsShared.IsWindows ? "c:\\xxx" : "/xxx";
@@ -347,7 +349,7 @@ namespace Microsoft.Build.UnitTests.Definition
         /// selected subtoolset, the subtoolset value overrides -- even if that
         /// value is empty.
         /// </summary>
-        [Fact]
+        [WindowsOnlyFact]
         public void ReadRegistry_SubToolsetOverridesBaseToolsetEntries()
         {
             string xdir = NativeMethodsShared.IsWindows ? "c:\\xxx" : "/xxx";
@@ -387,7 +389,7 @@ namespace Microsoft.Build.UnitTests.Definition
         /// selected subtoolset, the subtoolset value overrides -- even if that
         /// value is empty.
         /// </summary>
-        [Fact]
+        [WindowsOnlyFact]
         public void ReadRegistry_UnselectedSubToolsetIsIgnored()
         {
             string xdir = NativeMethodsShared.IsWindows ? "c:\\xxx" : "/xxx";
@@ -416,7 +418,7 @@ namespace Microsoft.Build.UnitTests.Definition
         /// <summary>
         /// Regular case of getting default tools version
         /// </summary>
-        [Fact]
+        [WindowsOnlyFact]
         public void GetDefaultToolsVersionFromRegistry_Basic()
         {
             _currentVersionRegistryKey.SetValue("DefaultToolsVersion", "tv1");
@@ -435,7 +437,7 @@ namespace Microsoft.Build.UnitTests.Definition
         /// <summary>
         /// Default value is not set
         /// </summary>
-        [Fact]
+        [WindowsOnlyFact]
         public void GetDefaultToolsVersionFromRegistry_DefaultValueNotSet()
         {
             ToolsetReader reader = GetStandardRegistryReader();
@@ -450,7 +452,7 @@ namespace Microsoft.Build.UnitTests.Definition
         /// <summary>
         /// "DefaultToolsVersion" has non-String data
         /// </summary>
-        [Fact]
+        [WindowsOnlyFact]
         public void GetDefaultToolsVersionFromRegistry_NonStringData()
         {
             Assert.Throws<InvalidToolsetDefinitionException>(() =>
@@ -463,18 +465,21 @@ namespace Microsoft.Build.UnitTests.Definition
 
                 Dictionary<string, Toolset> values = new Dictionary<string, Toolset>(StringComparer.OrdinalIgnoreCase);
                 reader.ReadToolsets(values, new PropertyDictionary<ProjectPropertyInstance>(), new PropertyDictionary<ProjectPropertyInstance>(), false, out msbuildOverrideTasksPath, out defaultOverrideToolsVersion);
-            }
-           );
+            });
         }
         private ToolsetRegistryReader GetStandardRegistryReader()
         {
-            return new ToolsetRegistryReader(new ProjectCollection().EnvironmentProperties, new PropertyDictionary<ProjectPropertyInstance>(), new MockRegistryKey(testRegistryPath));
+            using var collection = new ProjectCollection();
+#pragma warning disable CA2000 // The return object depends on the registry key that should not be disposed in this scope.
+            var registry = new MockRegistryKey(testRegistryPath);
+#pragma warning restore CA2000 // The return object depends on the registry key that should not be disposed in this scope.
+            return new ToolsetRegistryReader(collection.EnvironmentProperties, new PropertyDictionary<ProjectPropertyInstance>(), registry);
         }
 
         /// <summary>
         /// Regular case of getting overridetaskspath
         /// </summary>
-        [Fact]
+        [WindowsOnlyFact]
         public void GetOverrideTasksPathFromRegistry_Basic()
         {
             if (NativeMethodsShared.IsUnixLike)
@@ -496,7 +501,7 @@ namespace Microsoft.Build.UnitTests.Definition
         /// <summary>
         /// OverrideTasksPath is not set
         /// </summary>
-        [Fact]
+        [WindowsOnlyFact]
         public void GetOverrideTasksPathFromRegistry_ValueNotSet()
         {
             ToolsetReader reader = GetStandardRegistryReader();
@@ -511,7 +516,7 @@ namespace Microsoft.Build.UnitTests.Definition
         /// <summary>
         /// "OverrideTasksPath" has non-String data
         /// </summary>
-        [Fact]
+        [WindowsOnlyFact]
         public void GetOverrideTasksPathFromRegistry_NonStringData()
         {
             Assert.Throws<InvalidToolsetDefinitionException>(() =>
@@ -523,13 +528,12 @@ namespace Microsoft.Build.UnitTests.Definition
                 string msbuildOverrideTasksPath = null;
                 string defaultOverrideToolsVersion = null;
                 reader.ReadToolsets(values, new PropertyDictionary<ProjectPropertyInstance>(), new PropertyDictionary<ProjectPropertyInstance>(), false, out msbuildOverrideTasksPath, out defaultOverrideToolsVersion);
-            }
-           );
+            });
         }
         /// <summary>
         /// Regular case of getting the default override toolsversion
         /// </summary>
-        [Fact]
+        [WindowsOnlyFact]
         public void GetDefaultOverrideToolsVersionFromRegistry_Basic()
         {
             _currentVersionRegistryKey.SetValue("DefaultOverrideToolsVersion", "Current");
@@ -546,7 +550,7 @@ namespace Microsoft.Build.UnitTests.Definition
         /// <summary>
         /// DefaultOverrideToolsVersion is not set
         /// </summary>
-        [Fact]
+        [WindowsOnlyFact]
         public void GetDefaultOverrideToolsVersionFromRegistry_ValueNotSet()
         {
             ToolsetReader reader = GetStandardRegistryReader();
@@ -561,7 +565,7 @@ namespace Microsoft.Build.UnitTests.Definition
         /// <summary>
         /// "DefaultOverrideToolsVersion" has non-String data
         /// </summary>
-        [Fact]
+        [WindowsOnlyFact]
         public void GetDefaultOverrideToolsVersionFromRegistry_NonStringData()
         {
             Assert.Throws<InvalidToolsetDefinitionException>(() =>
@@ -573,10 +577,9 @@ namespace Microsoft.Build.UnitTests.Definition
                 string msbuildOverrideTasksPath = null;
                 string defaultOverrideToolsVersion = null;
                 reader.ReadToolsets(values, new PropertyDictionary<ProjectPropertyInstance>(), new PropertyDictionary<ProjectPropertyInstance>(), false, out msbuildOverrideTasksPath, out defaultOverrideToolsVersion);
-            }
-           );
+            });
         }
-        [Fact]
+        [WindowsOnlyFact]
         public void ReadToolsets_NoBinPathOrToolsPath()
         {
             RegistryKey key1 = _toolsVersionsRegistryKey.CreateSubKey("tv1");

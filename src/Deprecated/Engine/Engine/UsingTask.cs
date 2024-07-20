@@ -1,5 +1,9 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
+// THE ASSEMBLY BUILT FROM THIS SOURCE FILE HAS BEEN DEPRECATED FOR YEARS. IT IS BUILT ONLY TO PROVIDE
+// BACKWARD COMPATIBILITY FOR API USERS WHO HAVE NOT YET MOVED TO UPDATED APIS. PLEASE DO NOT SEND PULL
+// REQUESTS THAT CHANGE THIS FILE WITHOUT FIRST CHECKING WITH THE MAINTAINERS THAT THE FIX IS REQUIRED.
 
 using System;
 using System.Xml;
@@ -9,8 +13,23 @@ using Microsoft.Build.BuildEngine.Shared;
 namespace Microsoft.Build.BuildEngine
 {
     /// <summary>
+    /// This class (and the whole namespace) is deprecated. Please use the classes in these namespaces instead: 
+    /// <see href="/dotnet/api/microsoft.build.construction">Microsoft.Build.Construction</see>
+    /// <see href="/dotnet/api/microsoft.build.evaluation">Microsoft.Build.Evaluation</see>
+    /// <see href="/dotnet/api/microsoft.build.execution">Microsoft.Build.Execution</see>
+    /// 
     /// This class represents a single UsingTask element in a project file
     /// </summary>
+    /// <remarks>
+    /// <format type="text/markdown"><![CDATA[
+    /// ## Remarks
+    /// > [!WARNING]
+    /// > This class (and the whole namespace) is deprecated. Please use the classes in these namespaces instead: 
+    /// > <xref:Microsoft.Build.Construction>
+    /// > <xref:Microsoft.Build.Evaluation>
+    /// > <xref:Microsoft.Build.Execution>
+    /// ]]></format>
+    /// </remarks>
     /// <owner>LukaszG</owner>
     public class UsingTask
     {
@@ -19,8 +38,23 @@ namespace Microsoft.Build.BuildEngine
         private bool importedFromAnotherProject;
 
         /// <summary>
+        /// This method (and the whole namespace) is deprecated. Please use the classes in these namespaces instead: 
+        /// <see href="/dotnet/api/microsoft.build.construction">Microsoft.Build.Construction</see>
+        /// <see href="/dotnet/api/microsoft.build.evaluation">Microsoft.Build.Evaluation</see>
+        /// <see href="/dotnet/api/microsoft.build.execution">Microsoft.Build.Execution</see>
+        /// 
         /// Returns true if this UsingTask was imported from another project
         /// </summary>
+        /// <remarks>
+        /// <format type="text/markdown"><![CDATA[
+        /// ## Remarks
+        /// > [!WARNING]
+        /// > This method (and the whole namespace) is deprecated. Please use the classes in these namespaces instead: 
+        /// > <xref:Microsoft.Build.Construction>
+        /// > <xref:Microsoft.Build.Evaluation>
+        /// > <xref:Microsoft.Build.Execution>
+        /// ]]></format>
+        /// </remarks>
         /// <owner>LukaszG</owner>
         public bool IsImported
         {
@@ -30,8 +64,23 @@ namespace Microsoft.Build.BuildEngine
         private XmlAttribute taskNameAttribute = null;
 
         /// <summary>
+        /// This method (and the whole namespace) is deprecated. Please use the classes in these namespaces instead: 
+        /// <see href="/dotnet/api/microsoft.build.construction">Microsoft.Build.Construction</see>
+        /// <see href="/dotnet/api/microsoft.build.evaluation">Microsoft.Build.Evaluation</see>
+        /// <see href="/dotnet/api/microsoft.build.execution">Microsoft.Build.Execution</see>
+        /// 
         /// The task name
         /// </summary>
+        /// <remarks>
+        /// <format type="text/markdown"><![CDATA[
+        /// ## Remarks
+        /// > [!WARNING]
+        /// > This method (and the whole namespace) is deprecated. Please use the classes in these namespaces instead: 
+        /// > <xref:Microsoft.Build.Construction>
+        /// > <xref:Microsoft.Build.Evaluation>
+        /// > <xref:Microsoft.Build.Execution>
+        /// ]]></format>
+        /// </remarks>
         /// <owner>LukaszG</owner>
         public string TaskName
         {
@@ -49,8 +98,23 @@ namespace Microsoft.Build.BuildEngine
         private XmlAttribute assemblyNameAttribute = null;
 
         /// <summary>
+        /// This method (and the whole namespace) is deprecated. Please use the classes in these namespaces instead: 
+        /// <see href="/dotnet/api/microsoft.build.construction">Microsoft.Build.Construction</see>
+        /// <see href="/dotnet/api/microsoft.build.evaluation">Microsoft.Build.Evaluation</see>
+        /// <see href="/dotnet/api/microsoft.build.execution">Microsoft.Build.Execution</see>
+        /// 
         /// The name of the assembly containing the task
         /// </summary>
+        /// <remarks>
+        /// <format type="text/markdown"><![CDATA[
+        /// ## Remarks
+        /// > [!WARNING]
+        /// > This method (and the whole namespace) is deprecated. Please use the classes in these namespaces instead: 
+        /// > <xref:Microsoft.Build.Construction>
+        /// > <xref:Microsoft.Build.Evaluation>
+        /// > <xref:Microsoft.Build.Execution>
+        /// ]]></format>
+        /// </remarks>
         /// <owner>LukaszG</owner>
         public string AssemblyName
         {
@@ -68,8 +132,23 @@ namespace Microsoft.Build.BuildEngine
         private XmlAttribute assemblyFileAttribute = null;
 
         /// <summary>
+        /// This method (and the whole namespace) is deprecated. Please use the classes in these namespaces instead: 
+        /// <see href="/dotnet/api/microsoft.build.construction">Microsoft.Build.Construction</see>
+        /// <see href="/dotnet/api/microsoft.build.evaluation">Microsoft.Build.Evaluation</see>
+        /// <see href="/dotnet/api/microsoft.build.execution">Microsoft.Build.Execution</see>
+        /// 
         /// The assembly file containing the task
         /// </summary>
+        /// <remarks>
+        /// <format type="text/markdown"><![CDATA[
+        /// ## Remarks
+        /// > [!WARNING]
+        /// > This method (and the whole namespace) is deprecated. Please use the classes in these namespaces instead: 
+        /// > <xref:Microsoft.Build.Construction>
+        /// > <xref:Microsoft.Build.Evaluation>
+        /// > <xref:Microsoft.Build.Execution>
+        /// ]]></format>
+        /// </remarks>
         /// <owner>LukaszG</owner>
         public string AssemblyFile
         {
@@ -81,14 +160,29 @@ namespace Microsoft.Build.BuildEngine
         /// </summary>
         internal XmlAttribute AssemblyFileAttribute
         {
-            get { return this.assemblyFileAttribute; } 
+            get { return this.assemblyFileAttribute; }
         }
 
         private XmlAttribute conditionAttribute = null;
 
         /// <summary>
+        /// This method (and the whole namespace) is deprecated. Please use the classes in these namespaces instead: 
+        /// <see href="/dotnet/api/microsoft.build.construction">Microsoft.Build.Construction</see>
+        /// <see href="/dotnet/api/microsoft.build.evaluation">Microsoft.Build.Evaluation</see>
+        /// <see href="/dotnet/api/microsoft.build.execution">Microsoft.Build.Execution</see>
+        /// 
         /// The condition string for this UsingTask
         /// </summary>
+        /// <remarks>
+        /// <format type="text/markdown"><![CDATA[
+        /// ## Remarks
+        /// > [!WARNING]
+        /// > This method (and the whole namespace) is deprecated. Please use the classes in these namespaces instead: 
+        /// > <xref:Microsoft.Build.Construction>
+        /// > <xref:Microsoft.Build.Evaluation>
+        /// > <xref:Microsoft.Build.Execution>
+        /// ]]></format>
+        /// </remarks>
         /// <owner>LukaszG</owner>
         public string Condition
         {
@@ -135,7 +229,7 @@ namespace Microsoft.Build.BuildEngine
                         // ignore
                         break;
                     case XMakeElements.usingTaskParameterGroup:
-                        // ignore 
+                        // ignore
                         break;
                     default:
                         illegalChildElementFound = true;
@@ -149,9 +243,9 @@ namespace Microsoft.Build.BuildEngine
                 }
             }
 
-            // UsingTask has no valid child elements in 3.5 syntax, but in 4.0 syntax it does. 
+            // UsingTask has no valid child elements in 3.5 syntax, but in 4.0 syntax it does.
             // So ignore any valid 4.0 child elements and try to load the project as usual, but
-            // still error out if something we don't expect is found. 
+            // still error out if something we don't expect is found.
             if (illegalChildElementFound)
             {
                 ProjectXmlUtilities.ThrowProjectInvalidChildElement(illegalChildElement);
@@ -174,12 +268,12 @@ namespace Microsoft.Build.BuildEngine
                     case XMakeAttributes.assemblyFile:
                         assemblyFileAttribute = usingTaskAttribute;
                         break;
-                        
+
                     // ignore any RequiredRuntime XML attribute
                     // (we'll make this actually do something when we run on a CLR other than v2.0)
                     case XMakeAttributes.requiredRuntime:
                         // Do nothing
-                        break;                       
+                        break;
 
                     // get the condition, if any
                     case XMakeAttributes.condition:
@@ -211,7 +305,7 @@ namespace Microsoft.Build.BuildEngine
                         break;
 
                     default:
-                        ProjectXmlUtilities.ThrowProjectInvalidAttribute(usingTaskAttribute); 
+                        ProjectXmlUtilities.ThrowProjectInvalidAttribute(usingTaskAttribute);
                         break;
                 }
             }

@@ -22,13 +22,14 @@ EventSource is primarily used to profile code. For MSBuild specifically, a major
 | GenerateResourceOverall | Uses resource APIs to transform resource files into strongly-typed resource classes. |
 | LoadDocument | Loads an XMLDocumentWithLocation from a path.
 | MSBuildExe | Executes MSBuild from the command line. |
+| MSBuildServerBuild | Executes a build from the MSBuildServer node. |
 | PacketReadSize | Reports the size of a packet sent between nodes. Note that this does not include time information. |
 | Parse | Parses an XML document into a ProjectRootElement. |
 | ProjectGraphConstruction | Constructs a dependency graph among projects. |
 | RarComputeClosure | Resolves references from, for example, properties to explicit values. Used in resolving assembly references (RAR). |
 | RarLogResults | Logs the results from having resolved assembly references (RAR). |
 | RarOverall | Initiates the process of resolving assembly references (RAR). |
-| RarRemoveReferencesMarkedForExclusion | Removes blacklisted references from the reference table, putting primary and dependency references in invalid file lists. |
+| RarRemoveReferencesMarkedForExclusion | Removes denylisted references from the reference table, putting primary and dependency references in invalid file lists. |
 | RequestThreadProc | A function to requesting a new builder thread. |
 | ReusableStringBuilderFactory | Uses and resizes (if necessary) of ReusableStringBuilders. |
 | ReusableStringBuilderFactoryUnbalanced | Identifies improper usage from multiple threads or buggy code: multiple Gets were called without a Relase. |

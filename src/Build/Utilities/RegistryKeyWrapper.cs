@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
 #if FEATURE_WIN32_REGISTRY
 
 using System;
@@ -13,7 +14,7 @@ using RegistryException = Microsoft.Build.Exceptions.RegistryException;
 namespace Microsoft.Build.Internal
 {
     /// <summary>
-    /// Thin wrapper around Microsoft.Win32.RegistryKey that can be 
+    /// Thin wrapper around Microsoft.Win32.RegistryKey that can be
     /// subclassed for testing purposes
     /// </summary>
     internal class RegistryKeyWrapper : IDisposable
@@ -91,7 +92,7 @@ namespace Microsoft.Build.Internal
         }
 
         /// <summary>
-        /// Convenient static helper method on RegistryKeyWrapper, for when someone is only intersted in knowing 
+        /// Convenient static helper method on RegistryKeyWrapper, for when someone is only intersted in knowing
         /// whether a particular registry key exists or not.
         /// </summary>
         public static bool KeyExists(string registryKeyPath, RegistryHive registryHive, RegistryView registryView)
@@ -173,7 +174,9 @@ namespace Microsoft.Build.Internal
                 catch (Exception ex)
                 {
                     if (ExceptionHandling.NotExpectedRegistryException(ex))
+                    {
                         throw;
+                    }
 
                     throw new RegistryException(ex.Message, wrapper.Name + "\\" + keyNames[i], ex);
                 }

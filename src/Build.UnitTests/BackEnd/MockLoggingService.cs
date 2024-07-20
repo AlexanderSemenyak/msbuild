@@ -1,15 +1,15 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Microsoft.Build.BackEnd;
+using Microsoft.Build.BackEnd.Logging;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Framework.Profiler;
-using Microsoft.Build.BackEnd.Logging;
 using Microsoft.Build.Logging;
 using Microsoft.Build.Shared;
-
 using InvalidProjectFileException = Microsoft.Build.Exceptions.InvalidProjectFileException;
 using TaskItem = Microsoft.Build.Execution.ProjectItemInstance.TaskItem;
 
@@ -487,6 +487,10 @@ namespace Microsoft.Build.UnitTests.BackEnd
         {
         }
 
+        /// <inheritdoc />
+        public void LogBuildCanceled()
+        {
+        }
 
         /// <inheritdoc />
         public BuildEventContext CreateEvaluationBuildEventContext(int nodeId, int submissionId)
@@ -574,7 +578,8 @@ namespace Microsoft.Build.UnitTests.BackEnd
         /// <param name="taskName">The name of the task</param>
         /// <param name="projectFile">The project file</param>
         /// <param name="projectFileOfTaskNode">The project file containing the task node.</param>
-        public void LogTaskStarted(BuildEventContext targetBuildEventContext, string taskName, string projectFile, string projectFileOfTaskNode)
+        /// <param name="taskAssemblyLocation">>The location of the assembly containing the implementation of the task.</param>
+        public void LogTaskStarted(BuildEventContext targetBuildEventContext, string taskName, string projectFile, string projectFileOfTaskNode, string taskAssemblyLocation)
         {
         }
 
@@ -585,8 +590,9 @@ namespace Microsoft.Build.UnitTests.BackEnd
         /// <param name="taskName">The name of the task</param>
         /// <param name="projectFile">The project file</param>
         /// <param name="projectFileOfTaskNode">The project file containing the task node.</param>
+        /// <param name="taskAssemblyLocation">>The location of the assembly containing the implementation of the task.</param>
         /// <returns>The task logging context</returns>
-        public BuildEventContext LogTaskStarted2(BuildEventContext targetBuildEventContext, string taskName, string projectFile, string projectFileOfTaskNode, int line, int column)
+        public BuildEventContext LogTaskStarted2(BuildEventContext targetBuildEventContext, string taskName, string projectFile, string projectFileOfTaskNode, int line, int column, string taskAssemblyLocation)
         {
             return new BuildEventContext(0, 0, 0, 0);
         }
@@ -632,6 +638,14 @@ namespace Microsoft.Build.UnitTests.BackEnd
         {
             throw new NotImplementedException();
         }
+
+        public void LogIncludeFile(BuildEventContext buildEventContext, string filePath)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void InitializeComponent(IBuildComponentHost host) => throw new NotImplementedException();
+        public void ShutdownComponent() => throw new NotImplementedException();
 
         #endregion
     }

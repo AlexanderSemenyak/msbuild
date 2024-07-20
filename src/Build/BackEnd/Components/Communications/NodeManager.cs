@@ -1,17 +1,17 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Collections.Generic;
-using Microsoft.Build.Shared;
-using Microsoft.Build.Execution;
-using System.Threading;
 using System.Diagnostics;
+using System.Threading;
+using Microsoft.Build.Execution;
+using Microsoft.Build.Shared;
 
 namespace Microsoft.Build.BackEnd
 {
     /// <summary>
-    /// The NodeManager class is responsible for marshalling data to/from the NodeProviders and organizing the 
+    /// The NodeManager class is responsible for marshalling data to/from the NodeProviders and organizing the
     /// creation of new nodes on request.
     /// </summary>
     internal class NodeManager : INodeManager
@@ -23,7 +23,7 @@ namespace Microsoft.Build.BackEnd
 
         /// <summary>
         /// The node provider for out-of-proc nodes.
-        /// </summary> 
+        /// </summary>
         private INodeProvider? _outOfProcNodeProvider;
 
         /// <summary>
@@ -56,9 +56,9 @@ namespace Microsoft.Build.BackEnd
         /// BUGBUG: This is a fix which corrects an RI blocking BVT failure.  The real fix must be determined before RTM.
         /// This must be investigated and resolved before RTM.  The apparent issue is that a design-time build has already called EndBuild
         /// through the BuildManagerAccessor, and the nodes are shut down.  Shortly thereafter, the solution build manager comes through and calls EndBuild, which throws
-        /// another Shutdown packet in the queue, and causes the following build to stop prematurely.  This is all timing related - not every sequence of builds seems to 
+        /// another Shutdown packet in the queue, and causes the following build to stop prematurely.  This is all timing related - not every sequence of builds seems to
         /// cause the problem, probably due to the order in which the packet queue gets serviced relative to other threads.
-        /// 
+        ///
         /// It appears that the problem is that the BuildRequestEngine is being invoked in a way that causes a shutdown packet to appear to overlap with a build request packet.
         /// Interactions between the in-proc node communication thread and the shutdown mechanism must be investigated to determine how BuildManager.EndBuild is allowing itself
         /// to return before the node has indicated it is actually finished.
@@ -66,7 +66,7 @@ namespace Microsoft.Build.BackEnd
         private bool _nodesShutdown = true;
 
         /// <summary>
-        /// Tracks whether ShutdownComponent has been called.  
+        /// Tracks whether ShutdownComponent has been called.
         /// </summary>
         private bool _componentShutdown;
 
@@ -275,7 +275,7 @@ namespace Microsoft.Build.BackEnd
         /// <summary>
         /// Factory for component creation.
         /// </summary>
-        static internal IBuildComponent CreateComponent(BuildComponentType type)
+        internal static IBuildComponent CreateComponent(BuildComponentType type)
         {
             ErrorUtilities.VerifyThrow(type == BuildComponentType.NodeManager, "Cannot create component of type {0}", type);
             return new NodeManager();

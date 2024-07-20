@@ -1,27 +1,27 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
-using System.Xml;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
-using Microsoft.Build.Framework;
+using System.Threading.Tasks;
+using System.Xml;
 using Microsoft.Build.BackEnd;
+using Microsoft.Build.BackEnd.SdkResolution;
 using Microsoft.Build.Collections;
+using Microsoft.Build.Engine.UnitTests.BackEnd;
 using Microsoft.Build.Evaluation;
 using Microsoft.Build.Execution;
+using Microsoft.Build.Framework;
 using Microsoft.Build.Shared;
 using Shouldly;
-
-using ILoggingService = Microsoft.Build.BackEnd.Logging.ILoggingService;
-using ProjectLoggingContext = Microsoft.Build.BackEnd.Logging.ProjectLoggingContext;
-using NodeLoggingContext = Microsoft.Build.BackEnd.Logging.NodeLoggingContext;
-using LegacyThreadingData = Microsoft.Build.Execution.LegacyThreadingData;
-using System.Threading.Tasks;
-using Microsoft.Build.BackEnd.SdkResolution;
-using Microsoft.Build.Engine.UnitTests.BackEnd;
 using Xunit;
+using ILoggingService = Microsoft.Build.BackEnd.Logging.ILoggingService;
+using LegacyThreadingData = Microsoft.Build.Execution.LegacyThreadingData;
+using NodeLoggingContext = Microsoft.Build.BackEnd.Logging.NodeLoggingContext;
+using ProjectLoggingContext = Microsoft.Build.BackEnd.Logging.ProjectLoggingContext;
 
 #nullable disable
 
@@ -101,9 +101,10 @@ namespace Microsoft.Build.UnitTests.BackEnd
             // The Empty target has no inputs or outputs.
             TargetBuilder builder = (TargetBuilder)_host.GetComponent(BuildComponentType.TargetBuilder);
             IConfigCache cache = (IConfigCache)_host.GetComponent(BuildComponentType.ConfigCache);
-            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, new string[] { "Empty" }), cache[1]);
+            (string name, TargetBuiltReason reason)[] target = { ("Empty", TargetBuiltReason.None) };
+            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, target), cache[1]);
 
-            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, entry.Request.Targets.ToArray(), CreateStandardLookup(project), CancellationToken.None).Result;
+            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, target, CreateStandardLookup(project), CancellationToken.None).Result;
             Assert.True(result.HasResultsForTarget("Empty"));
             Assert.Equal(TargetResultCode.Success, result["Empty"].ResultCode);
             Assert.Empty(result["Empty"].Items);
@@ -121,8 +122,9 @@ namespace Microsoft.Build.UnitTests.BackEnd
             TargetBuilder builder = (TargetBuilder)_host.GetComponent(BuildComponentType.TargetBuilder);
             IConfigCache cache = (IConfigCache)_host.GetComponent(BuildComponentType.ConfigCache);
 
-            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, new string[] { "Baz" }), cache[1]);
-            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, entry.Request.Targets.ToArray(), CreateStandardLookup(project), CancellationToken.None).Result;
+            (string name, TargetBuiltReason reason)[] target = { ("Baz", TargetBuiltReason.None) };
+            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, target), cache[1]);
+            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, target, CreateStandardLookup(project), CancellationToken.None).Result;
 
             // The result returned from the builder includes only those for the specified targets.
             Assert.True(result.HasResultsForTarget("Baz"));
@@ -146,8 +148,9 @@ namespace Microsoft.Build.UnitTests.BackEnd
             // DepSkip depends on Skip (which skips) but should succeed itself.
             TargetBuilder builder = (TargetBuilder)_host.GetComponent(BuildComponentType.TargetBuilder);
             IConfigCache cache = (IConfigCache)_host.GetComponent(BuildComponentType.ConfigCache);
-            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, new string[] { "DepSkip" }), cache[1]);
-            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, entry.Request.Targets.ToArray(), CreateStandardLookup(project), CancellationToken.None).Result;
+            (string name, TargetBuiltReason reason)[] target = { ("DepSkip", TargetBuiltReason.None) };
+            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, target), cache[1]);
+            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, target, CreateStandardLookup(project), CancellationToken.None).Result;
             Assert.True(result.HasResultsForTarget("DepSkip"));
             Assert.False(result.HasResultsForTarget("Skip"));
             Assert.Equal(TargetResultCode.Success, result["DepSkip"].ResultCode);
@@ -174,8 +177,9 @@ namespace Microsoft.Build.UnitTests.BackEnd
             taskBuilder.FailTaskNumber = 3; // Succeed on Foo's one task, and Error's first task, and fail the second.
 
             IConfigCache cache = (IConfigCache)_host.GetComponent(BuildComponentType.ConfigCache);
-            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, new string[] { "DepError" }), cache[1]);
-            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, entry.Request.Targets.ToArray(), CreateStandardLookup(project), CancellationToken.None).Result;
+            (string name, TargetBuiltReason reason)[] target = { ("DepError", TargetBuiltReason.None) };
+            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, target), cache[1]);
+            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, target, CreateStandardLookup(project), CancellationToken.None).Result;
             Assert.True(result.HasResultsForTarget("DepError"));
             Assert.False(result.HasResultsForTarget("Foo"));
             Assert.False(result.HasResultsForTarget("Skip"));
@@ -237,6 +241,41 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
             }
         }
 
+        [Fact]
+        public void TestErrorForSkippedTargetInputsAndOutputs()
+        {
+            string projectContents = @"
+<Project>
+  <Target Name=""Build"" Inputs=""a.txt;b.txt"" Outputs=""c.txt"">
+    <Message Text=""test"" Importance=""High"" />
+  </Target>
+</Project>";
+
+            using (var env = TestEnvironment.Create())
+            {
+                var buildParameters = new BuildParameters()
+                {
+                    Question = true,
+                };
+
+                using (var buildSession = new Helpers.BuildManagerSession(env, buildParameters))
+                {
+                    var files = env.CreateTestProjectWithFiles(projectContents, new[] { "a.txt", "b.txt", "c.txt" });
+                    var fileA = new FileInfo(files.CreatedFiles[0]);
+                    var fileB = new FileInfo(files.CreatedFiles[1]);
+                    var fileC = new FileInfo(files.CreatedFiles[2]);
+
+                    var now = DateTime.UtcNow;
+                    fileA.LastWriteTimeUtc = now - TimeSpan.FromSeconds(10);
+                    fileB.LastWriteTimeUtc = now + TimeSpan.FromSeconds(10);
+                    fileC.LastWriteTimeUtc = now;
+
+                    var result = buildSession.BuildProjectFile(files.ProjectFile);
+                    result.OverallResult.ShouldBe(BuildResultCode.Failure);
+                }
+            }
+        }
+
         /// <summary>
         /// Ensure that skipped targets only infer outputs once
         /// </summary>
@@ -249,8 +288,7 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
 
             Thread.Sleep(100);
 
-            string content = String.Format
-                (
+            string content = String.Format(
 @"
 <Project ToolsVersion='msbuilddefaulttoolsversion'>
 
@@ -285,10 +323,9 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
   </Target>
 </Project>
             ",
-             path
-             );
-
-            Project p = new Project(XmlReader.Create(new StringReader(content)));
+             path);
+            using ProjectFromString projectFromString = new(content);
+            Project p = projectFromString.Project;
             p.Build(new string[] { "Build" }, new ILogger[] { logger });
 
             // There should be no duplicates in the list - if there are, then skipped targets are being inferred multiple times
@@ -325,9 +362,10 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
 
             TargetBuilder builder = (TargetBuilder)_host.GetComponent(BuildComponentType.TargetBuilder);
             IConfigCache cache = (IConfigCache)_host.GetComponent(BuildComponentType.ConfigCache);
-            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, new string[] { "Build" }), cache[1]);
+            (string name, TargetBuiltReason reason)[] target = { ("Build", TargetBuiltReason.None) };
+            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, target), cache[1]);
 
-            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, entry.Request.Targets.ToArray(), CreateStandardLookup(project), CancellationToken.None).Result;
+            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, target, CreateStandardLookup(project), CancellationToken.None).Result;
             AssertTaskExecutionOrder(new string[] { "CallTarget", "Foo2Target", "FooTarget", "GooTarget" });
         }
 
@@ -464,9 +502,10 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
 
             TargetBuilder builder = (TargetBuilder)_host.GetComponent(BuildComponentType.TargetBuilder);
             IConfigCache cache = (IConfigCache)_host.GetComponent(BuildComponentType.ConfigCache);
-            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, new string[] { "Build" }), cache[1]);
+            (string name, TargetBuiltReason reason)[] target = { ("Build", TargetBuiltReason.None) };
+            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, target), cache[1]);
 
-            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, entry.Request.Targets.ToArray(), CreateStandardLookup(project), CancellationToken.None).Result;
+            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, target, CreateStandardLookup(project), CancellationToken.None).Result;
             AssertTaskExecutionOrder(new string[] { "BuildTask" });
         }
 
@@ -489,9 +528,10 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
 
             TargetBuilder builder = (TargetBuilder)_host.GetComponent(BuildComponentType.TargetBuilder);
             IConfigCache cache = (IConfigCache)_host.GetComponent(BuildComponentType.ConfigCache);
-            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, new string[] { "Build" }), cache[1]);
+            (string name, TargetBuiltReason reason)[] target = { ("Build", TargetBuiltReason.None) };
+            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, target), cache[1]);
 
-            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, entry.Request.Targets.ToArray(), CreateStandardLookup(project), CancellationToken.None).Result;
+            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, target, CreateStandardLookup(project), CancellationToken.None).Result;
             AssertTaskExecutionOrder(new string[] { "BeforeTask", "BuildTask" });
         }
 
@@ -514,9 +554,10 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
 
             TargetBuilder builder = (TargetBuilder)_host.GetComponent(BuildComponentType.TargetBuilder);
             IConfigCache cache = (IConfigCache)_host.GetComponent(BuildComponentType.ConfigCache);
-            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, new string[] { "Build;Me" }), cache[1]);
+            (string name, TargetBuiltReason reason)[] target = { ("Build;Me", TargetBuiltReason.None) };
+            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, target), cache[1]);
 
-            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, entry.Request.Targets.ToArray(), CreateStandardLookup(project), CancellationToken.None).Result;
+            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, target, CreateStandardLookup(project), CancellationToken.None).Result;
             AssertTaskExecutionOrder(new string[] { "BeforeTask", "BuildTask" });
         }
 
@@ -543,9 +584,10 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
 
             TargetBuilder builder = (TargetBuilder)_host.GetComponent(BuildComponentType.TargetBuilder);
             IConfigCache cache = (IConfigCache)_host.GetComponent(BuildComponentType.ConfigCache);
-            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, new string[] { "Build" }), cache[1]);
+            (string name, TargetBuiltReason reason)[] target = { ("Build", TargetBuiltReason.None) };
+            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, target), cache[1]);
 
-            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, entry.Request.Targets.ToArray(), CreateStandardLookup(project), CancellationToken.None).Result;
+            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, target, CreateStandardLookup(project), CancellationToken.None).Result;
             AssertTaskExecutionOrder(new string[] { "BeforeTask", "BuildTask" });
         }
 
@@ -577,9 +619,10 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
 
             TargetBuilder builder = (TargetBuilder)_host.GetComponent(BuildComponentType.TargetBuilder);
             IConfigCache cache = (IConfigCache)_host.GetComponent(BuildComponentType.ConfigCache);
-            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, new string[] { "Build" }), cache[1]);
+            (string name, TargetBuiltReason reason)[] target = { ("Build", TargetBuiltReason.None) };
+            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, target), cache[1]);
 
-            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, entry.Request.Targets.ToArray(), CreateStandardLookup(project), CancellationToken.None).Result;
+            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, target, CreateStandardLookup(project), CancellationToken.None).Result;
             AssertTaskExecutionOrder(new string[] { "BeforeTask", "BuildTask", "Error" });
         }
 
@@ -608,9 +651,10 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
 
             TargetBuilder builder = (TargetBuilder)_host.GetComponent(BuildComponentType.TargetBuilder);
             IConfigCache cache = (IConfigCache)_host.GetComponent(BuildComponentType.ConfigCache);
-            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, new string[] { "Build" }), cache[1]);
+            (string name, TargetBuiltReason reason)[] target = { ("Build", TargetBuiltReason.None) };
+            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, target), cache[1]);
 
-            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, entry.Request.Targets.ToArray(), CreateStandardLookup(project), CancellationToken.None).Result;
+            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, target, CreateStandardLookup(project), CancellationToken.None).Result;
             AssertTaskExecutionOrder(new string[] { "BeforeTask", "BeforeTask2", "BuildTask" });
         }
 
@@ -638,9 +682,10 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
 
             TargetBuilder builder = (TargetBuilder)_host.GetComponent(BuildComponentType.TargetBuilder);
             IConfigCache cache = (IConfigCache)_host.GetComponent(BuildComponentType.ConfigCache);
-            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, new string[] { "Foo" }), cache[1]);
+            (string name, TargetBuiltReason reason)[] target = { ("Foo", TargetBuiltReason.None) };
+            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, target), cache[1]);
 
-            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, entry.Request.Targets.ToArray(), CreateStandardLookup(project), CancellationToken.None).Result;
+            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, target, CreateStandardLookup(project), CancellationToken.None).Result;
             AssertTaskExecutionOrder(new string[] { "BeforeTask", "FooTask" });
         }
 
@@ -663,9 +708,10 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
 
             TargetBuilder builder = (TargetBuilder)_host.GetComponent(BuildComponentType.TargetBuilder);
             IConfigCache cache = (IConfigCache)_host.GetComponent(BuildComponentType.ConfigCache);
-            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, new string[] { "Build" }), cache[1]);
+            (string name, TargetBuiltReason reason)[] target = { ("Build", TargetBuiltReason.None) };
+            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, target), cache[1]);
 
-            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, entry.Request.Targets.ToArray(), CreateStandardLookup(project), CancellationToken.None).Result;
+            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, target, CreateStandardLookup(project), CancellationToken.None).Result;
             AssertTaskExecutionOrder(new string[] { "BeforeTask" });
         }
 
@@ -698,9 +744,10 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
 
             TargetBuilder builder = (TargetBuilder)_host.GetComponent(BuildComponentType.TargetBuilder);
             IConfigCache cache = (IConfigCache)_host.GetComponent(BuildComponentType.ConfigCache);
-            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, new string[] { "Build" }), cache[1]);
+            (string name, TargetBuiltReason reason)[] target = { ("Build", TargetBuiltReason.None) };
+            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, target), cache[1]);
 
-            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, entry.Request.Targets.ToArray(), CreateStandardLookup(project), CancellationToken.None).Result;
+            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, target, CreateStandardLookup(project), CancellationToken.None).Result;
             AssertTaskExecutionOrder(new string[] { "BuildDepTask", "BeforeDepTask", "BeforeTask", "BuildTask" });
         }
 
@@ -723,9 +770,10 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
 
             TargetBuilder builder = (TargetBuilder)_host.GetComponent(BuildComponentType.TargetBuilder);
             IConfigCache cache = (IConfigCache)_host.GetComponent(BuildComponentType.ConfigCache);
-            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, new string[] { "Build" }), cache[1]);
+            (string name, TargetBuiltReason reason)[] target = { ("Build", TargetBuiltReason.None) }
+;            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, target), cache[1]);
 
-            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, entry.Request.Targets.ToArray(), CreateStandardLookup(project), CancellationToken.None).Result;
+            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, target, CreateStandardLookup(project), CancellationToken.None).Result;
             AssertTaskExecutionOrder(new string[] { "BuildTask" });
             Assert.False(result.ResultsByTarget["Build"].AfterTargetsHaveFailed);
         }
@@ -749,9 +797,10 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
 
             TargetBuilder builder = (TargetBuilder)_host.GetComponent(BuildComponentType.TargetBuilder);
             IConfigCache cache = (IConfigCache)_host.GetComponent(BuildComponentType.ConfigCache);
-            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, new string[] { "Build" }), cache[1]);
+            (string name, TargetBuiltReason reason)[] target = { ("Build", TargetBuiltReason.None) };
+            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, target), cache[1]);
 
-            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, entry.Request.Targets.ToArray(), CreateStandardLookup(project), CancellationToken.None).Result;
+            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, target, CreateStandardLookup(project), CancellationToken.None).Result;
             AssertTaskExecutionOrder(new string[] { "AfterTask" });
             Assert.False(result.ResultsByTarget["Build"].AfterTargetsHaveFailed);
         }
@@ -778,9 +827,10 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
 
             TargetBuilder builder = (TargetBuilder)_host.GetComponent(BuildComponentType.TargetBuilder);
             IConfigCache cache = (IConfigCache)_host.GetComponent(BuildComponentType.ConfigCache);
-            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, new string[] { "Build" }), cache[1]);
+            (string name, TargetBuiltReason reason)[] target = { ("Build", TargetBuiltReason.None) };
+            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, target), cache[1]);
 
-            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, entry.Request.Targets.ToArray(), CreateStandardLookup(project), CancellationToken.None).Result;
+            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, target, CreateStandardLookup(project), CancellationToken.None).Result;
             AssertTaskExecutionOrder(new string[] { "BuildTask" });
             Assert.False(result.ResultsByTarget["Build"].AfterTargetsHaveFailed);
         }
@@ -821,9 +871,10 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
 
             TargetBuilder builder = (TargetBuilder)_host.GetComponent(BuildComponentType.TargetBuilder);
             IConfigCache cache = (IConfigCache)_host.GetComponent(BuildComponentType.ConfigCache);
-            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, new string[] { "PostBuild" }), cache[1]);
+            (string name, TargetBuiltReason reason)[] target = { ("PostBuild", TargetBuiltReason.None) };
+            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, target), cache[1]);
 
-            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, entry.Request.Targets.ToArray(), CreateStandardLookup(project), CancellationToken.None).Result;
+            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, target, CreateStandardLookup(project), CancellationToken.None).Result;
             AssertTaskExecutionOrder(new string[] { "BuildTask", "AfterTask", "Error2" });
             Assert.False(result.ResultsByTarget["PostBuild"].AfterTargetsHaveFailed);
         }
@@ -847,9 +898,10 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
 
             TargetBuilder builder = (TargetBuilder)_host.GetComponent(BuildComponentType.TargetBuilder);
             IConfigCache cache = (IConfigCache)_host.GetComponent(BuildComponentType.ConfigCache);
-            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, new string[] { "Build" }), cache[1]);
+            (string name, TargetBuiltReason reason)[] target = { ("Build", TargetBuiltReason.None) };
+            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, target), cache[1]);
 
-            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, entry.Request.Targets.ToArray(), CreateStandardLookup(project), CancellationToken.None).Result;
+            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, target, CreateStandardLookup(project), CancellationToken.None).Result;
             AssertTaskExecutionOrder(new string[] { "BuildTask", "AfterTask" });
             Assert.False(result.ResultsByTarget["Build"].AfterTargetsHaveFailed);
         }
@@ -873,9 +925,10 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
 
             TargetBuilder builder = (TargetBuilder)_host.GetComponent(BuildComponentType.TargetBuilder);
             IConfigCache cache = (IConfigCache)_host.GetComponent(BuildComponentType.ConfigCache);
-            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, new string[] { "Build;Me" }), cache[1]);
+            (string name, TargetBuiltReason reason)[] target = { ("Build;Me", TargetBuiltReason.None) };
+            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, target), cache[1]);
 
-            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, entry.Request.Targets.ToArray(), CreateStandardLookup(project), CancellationToken.None).Result;
+            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, target, CreateStandardLookup(project), CancellationToken.None).Result;
             AssertTaskExecutionOrder(new string[] { "BuildTask", "AfterTask" });
             Assert.False(result.ResultsByTarget["Build;Me"].AfterTargetsHaveFailed);
         }
@@ -904,9 +957,10 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
 
             TargetBuilder builder = (TargetBuilder)_host.GetComponent(BuildComponentType.TargetBuilder);
             IConfigCache cache = (IConfigCache)_host.GetComponent(BuildComponentType.ConfigCache);
-            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, new string[] { "Build" }), cache[1]);
+            (string name, TargetBuiltReason reason)[] target = { ("Build", TargetBuiltReason.None) };
+            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, target), cache[1]);
 
-            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, entry.Request.Targets.ToArray(), CreateStandardLookup(project), CancellationToken.None).Result;
+            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, target, CreateStandardLookup(project), CancellationToken.None).Result;
             AssertTaskExecutionOrder(new string[] { "BuildTask", "AfterTask", "AfterTask2" });
             Assert.False(result.ResultsByTarget["Build"].AfterTargetsHaveFailed);
         }
@@ -927,7 +981,7 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
 </Target>
 ";
 
-            BuildResult result = BuildSimpleProject(projectBody, new string[] { "Build" }, failTaskNumber: 2 /* Fail on After */);
+            BuildResult result = BuildSimpleProject(projectBody, new (string name, TargetBuiltReason reason)[] { ("Build", TargetBuiltReason.None) }, failTaskNumber: 2 /* Fail on After */);
             result.ResultsByTarget["Build"].ResultCode.ShouldBe(TargetResultCode.Success);
             result.ResultsByTarget["Build"].AfterTargetsHaveFailed.ShouldBe(true);
         }
@@ -952,7 +1006,7 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
 </Target>
 ";
 
-            BuildResult result = BuildSimpleProject(projectBody, new string[] { "Build" }, failTaskNumber: 3 /* Fail on After2 */);
+            BuildResult result = BuildSimpleProject(projectBody, new (string name, TargetBuiltReason reason)[] { ("Build", TargetBuiltReason.None) }, failTaskNumber: 3 /* Fail on After2 */);
             result.ResultsByTarget["Build"].ResultCode.ShouldBe(TargetResultCode.Success);
             result.ResultsByTarget["Build"].AfterTargetsHaveFailed.ShouldBe(true);
         }
@@ -971,7 +1025,7 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
 <Target Name='After2' AfterTargets='After1' />
 ";
 
-            BuildResult result = BuildSimpleProject(projectBody, new string[] { "Build" }, failTaskNumber: int.MaxValue /* no task failure needed here */);
+            BuildResult result = BuildSimpleProject(projectBody, new (string name, TargetBuiltReason reason)[] { ("Build", TargetBuiltReason.None) }, failTaskNumber: int.MaxValue /* no task failure needed here */);
             result.ResultsByTarget["Build"].ResultCode.ShouldBe(TargetResultCode.Success);
             result.ResultsByTarget["Build"].AfterTargetsHaveFailed.ShouldBe(false);
         }
@@ -1001,9 +1055,10 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
 
             TargetBuilder builder = (TargetBuilder)_host.GetComponent(BuildComponentType.TargetBuilder);
             IConfigCache cache = (IConfigCache)_host.GetComponent(BuildComponentType.ConfigCache);
-            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, new string[] { "Foo" }), cache[1]);
+            (string name, TargetBuiltReason reason)[] target = { ("Foo", TargetBuiltReason.None) };
+            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, target), cache[1]);
 
-            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, entry.Request.Targets.ToArray(), CreateStandardLookup(project), CancellationToken.None).Result;
+            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, target, CreateStandardLookup(project), CancellationToken.None).Result;
             AssertTaskExecutionOrder(new string[] { "FooTask", "AfterTask" });
         }
 
@@ -1035,9 +1090,10 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
 
             TargetBuilder builder = (TargetBuilder)_host.GetComponent(BuildComponentType.TargetBuilder);
             IConfigCache cache = (IConfigCache)_host.GetComponent(BuildComponentType.ConfigCache);
-            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, new string[] { "Build" }), cache[1]);
+            (string name, TargetBuiltReason reason)[] target = { ("Build", TargetBuiltReason.None) };
+            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, target), cache[1]);
 
-            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, entry.Request.Targets.ToArray(), CreateStandardLookup(project), CancellationToken.None).Result;
+            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, target, CreateStandardLookup(project), CancellationToken.None).Result;
             AssertTaskExecutionOrder(new string[] { "BuildDepTask", "BuildTask", "AfterDepTask", "AfterTask" });
         }
 
@@ -1085,9 +1141,10 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
 
             TargetBuilder builder = (TargetBuilder)_host.GetComponent(BuildComponentType.TargetBuilder);
             IConfigCache cache = (IConfigCache)_host.GetComponent(BuildComponentType.ConfigCache);
-            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, new string[] { "Build" }), cache[1]);
+            (string name, TargetBuiltReason reason)[] target = { ("Build", TargetBuiltReason.None) };
+            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, target), cache[1]);
 
-            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, entry.Request.Targets.ToArray(), CreateStandardLookup(project), CancellationToken.None).Result;
+            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, target, CreateStandardLookup(project), CancellationToken.None).Result;
             AssertTaskExecutionOrder(new string[] { "BuildDepTask", "BeforeDepDepTask", "BeforeDepTask", "BeforeTask", "BuildTask", "AfterDepDepTask", "AfterDepTask", "AfterTask" });
         }
 
@@ -1144,9 +1201,10 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
 
             TargetBuilder builder = (TargetBuilder)_host.GetComponent(BuildComponentType.TargetBuilder);
             IConfigCache cache = (IConfigCache)_host.GetComponent(BuildComponentType.ConfigCache);
-            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, new string[] { "Build" }), cache[1]);
+            (string name, TargetBuiltReason reason)[] target = { ("Build", TargetBuiltReason.None) };
+            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, target), cache[1]);
 
-            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, entry.Request.Targets.ToArray(), CreateStandardLookup(project), CancellationToken.None).Result;
+            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, target, CreateStandardLookup(project), CancellationToken.None).Result;
             AssertTaskExecutionOrder(new string[] { "BuildDepTask", "BeforeDepDepTask", "BeforeBeforeDepTask", "AfterBeforeBeforeDepTask", "BeforeDepTask", "BeforeTask", "AfterBeforeDepDepTask", "AfterBeforeDepTask", "AfterBeforeTask", "BuildTask" });
         }
 
@@ -1185,9 +1243,10 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
 
             TargetBuilder builder = (TargetBuilder)_host.GetComponent(BuildComponentType.TargetBuilder);
             IConfigCache cache = (IConfigCache)_host.GetComponent(BuildComponentType.ConfigCache);
-            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, new string[] { "Build" }), cache[1]);
+            (string name, TargetBuiltReason reason)[] target = { ("Build", TargetBuiltReason.None) };
+            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, target), cache[1]);
 
-            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, entry.Request.Targets.ToArray(), CreateStandardLookup(project), CancellationToken.None).Result;
+            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, target, CreateStandardLookup(project), CancellationToken.None).Result;
             AssertTaskExecutionOrder(new string[] { "BuildTask", "BeforeErrorTargetTask", "ErrorTargetTask", "AfterErrorTargetTask" });
             Assert.False(result.ResultsByTarget["Build"].AfterTargetsHaveFailed);
         }
@@ -1230,9 +1289,10 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
 
             TargetBuilder builder = (TargetBuilder)_host.GetComponent(BuildComponentType.TargetBuilder);
             IConfigCache cache = (IConfigCache)_host.GetComponent(BuildComponentType.ConfigCache);
-            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, new string[] { "Build" }), cache[1]);
+            (string name, TargetBuiltReason reason)[] target = { ("Build", TargetBuiltReason.None) };
+            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, target), cache[1]);
 
-            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, entry.Request.Targets.ToArray(), CreateStandardLookup(project), CancellationToken.None).Result;
+            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, target, CreateStandardLookup(project), CancellationToken.None).Result;
             AssertTaskExecutionOrder(new string[] { "BeforeTask", "BuildDepTask", "AfterTask", "BuildTask" });
         }
 
@@ -1260,9 +1320,10 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
 
             TargetBuilder builder = (TargetBuilder)_host.GetComponent(BuildComponentType.TargetBuilder);
             IConfigCache cache = (IConfigCache)_host.GetComponent(BuildComponentType.ConfigCache);
-            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, new string[] { "Build" }), cache[1]);
+            (string name, TargetBuiltReason reason)[] target = { ("Build", TargetBuiltReason.None) };
+            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, target), cache[1]);
 
-            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, entry.Request.Targets.ToArray(), CreateStandardLookup(project), CancellationToken.None).Result;
+            BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, target, CreateStandardLookup(project), CancellationToken.None).Result;
             AssertTaskExecutionOrder(new string[] { "BuildTask" });
         }
 
@@ -1283,8 +1344,8 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
     </Target>
 </Project>
       ";
-            StringReader reader = new StringReader(projectContents);
-            Project project = new Project(new XmlTextReader(reader), null, null);
+            using ProjectFromString projectFromString = new(projectContents, null, null);
+            Project project = projectFromString.Project;
             bool success = project.Build(_mockLogger);
             Assert.False(success);
         }
@@ -1310,8 +1371,8 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
       ";
             string errorMessage = @"There is a circular dependency in the target dependency graph involving target ""TargetA"". Since ""TargetC"" has ""DependsOn"" dependence on ""TargetA"", the circular is ""TargetA<-TargetC<-TargetB<-TargetA"".";
 
-            StringReader reader = new StringReader(projectContents);
-            Project project = new Project(new XmlTextReader(reader), null, null);
+            using ProjectFromString projectFromString = new(projectContents, null, null);
+            Project project = projectFromString.Project;
             project.Build(_mockLogger).ShouldBeFalse();
             _mockLogger.ErrorCount.ShouldBe(1);
             _mockLogger.Errors[0].Message.ShouldBe(errorMessage);
@@ -1333,10 +1394,11 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
 
             TargetBuilder builder = (TargetBuilder)_host.GetComponent(BuildComponentType.TargetBuilder);
             IConfigCache cache = (IConfigCache)_host.GetComponent(BuildComponentType.ConfigCache);
-            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, new string[] { "Build" }), cache[1]);
+            (string name, TargetBuiltReason reason)[] target = { ("Build", TargetBuiltReason.None) };
+            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, target), cache[1]);
             using (CancellationTokenSource source = new CancellationTokenSource())
             {
-                BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, entry.Request.Targets.ToArray(), CreateStandardLookup(project), source.Token).Result;
+                BuildResult result = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, target, CreateStandardLookup(project), source.Token).Result;
                 AssertTaskExecutionOrder(new string[] { "BuildTask" });
 
                 // This simply should not fail.
@@ -1365,9 +1427,10 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
             taskBuilder.FailTaskNumber = 1;
 
             IConfigCache cache = (IConfigCache)_host.GetComponent(BuildComponentType.ConfigCache);
-            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, new[] { "Build" }), cache[1]);
+            (string name, TargetBuiltReason reason)[] target = { ("Build", TargetBuiltReason.None) };
+            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, target), cache[1]);
 
-            var buildResult = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, entry.Request.Targets.ToArray(), CreateStandardLookup(project), CancellationToken.None).Result;
+            var buildResult = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, target, CreateStandardLookup(project), CancellationToken.None).Result;
 
             IResultsCache resultsCache = (IResultsCache)_host.GetComponent(BuildComponentType.ResultsCache);
             Assert.True(resultsCache.GetResultForRequest(entry.Request).HasResultsForTarget("Build"));
@@ -1391,8 +1454,9 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
             taskBuilder.FailTaskNumber = 1;
 
             IConfigCache cache = (IConfigCache)_host.GetComponent(BuildComponentType.ConfigCache);
-            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, new[] { "NotFound" }, BuildRequestDataFlags.SkipNonexistentTargets), cache[1]);
-            var buildResult = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, entry.Request.Targets.ToArray(), CreateStandardLookup(project), CancellationToken.None).Result;
+            (string name, TargetBuiltReason reason)[] target = { ("NotFound", TargetBuiltReason.None) };
+            BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, target, BuildRequestDataFlags.SkipNonexistentTargets), cache[1]);
+            var buildResult = builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, target, CreateStandardLookup(project), CancellationToken.None).Result;
 
             IResultsCache resultsCache = (IResultsCache)_host.GetComponent(BuildComponentType.ResultsCache);
 
@@ -1493,9 +1557,9 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
         /// <summary>
         /// Creates a new build request
         /// </summary>
-        private BuildRequest CreateNewBuildRequest(int configurationId, string[] targets, BuildRequestDataFlags flags = BuildRequestDataFlags.None)
+        private BuildRequest CreateNewBuildRequest(int configurationId, (string name, TargetBuiltReason reason)[] targets, BuildRequestDataFlags flags = BuildRequestDataFlags.None)
         {
-            return new BuildRequest(1 /* submissionId */, _nodeRequestId++, configurationId, targets, null, BuildEventContext.Invalid, null, flags);
+            return new BuildRequest(1 /* submissionId */, _nodeRequestId++, configurationId, targets.Select(t => t.name).ToArray(), null, BuildEventContext.Invalid, null, flags);
         }
 
         /// <summary>
@@ -1610,7 +1674,8 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
 
             IConfigCache cache = (IConfigCache)_host.GetComponent(BuildComponentType.ConfigCache);
             BuildRequestConfiguration config = new BuildRequestConfiguration(1, new BuildRequestData("testFile", new Dictionary<string, string>(), "3.5", Array.Empty<string>(), null), "2.0");
-            Project project = new Project(XmlReader.Create(new StringReader(projectFileContents)));
+            using ProjectFromString projectFromString = new(projectFileContents);
+            Project project = projectFromString.Project;
 
             config.Project = project.CreateProjectInstance();
             cache.AddConfiguration(config);
@@ -1635,7 +1700,7 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
         /// <param name="targets">The targets to build.</param>
         /// <param name="failTaskNumber">The task ordinal to fail on.</param>
         /// <returns>The result of building the specified project/tasks.</returns>
-        private BuildResult BuildSimpleProject(string projectBody, string[] targets, int failTaskNumber)
+        private BuildResult BuildSimpleProject(string projectBody, (string name, TargetBuiltReason reason)[] targets, int failTaskNumber)
         {
             ProjectInstance project = CreateTestProject(projectBody);
 
@@ -1646,13 +1711,13 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
             IConfigCache cache = (IConfigCache)_host.GetComponent(BuildComponentType.ConfigCache);
             BuildRequestEntry entry = new BuildRequestEntry(CreateNewBuildRequest(1, targets), cache[1]);
 
-            return builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, entry.Request.Targets.ToArray(), CreateStandardLookup(project), CancellationToken.None).Result;
+            return builder.BuildTargets(GetProjectLoggingContext(entry), entry, this, targets, CreateStandardLookup(project), CancellationToken.None).Result;
         }
 
         /// <summary>
         /// The mock component host object.
         /// </summary>
-        private class MockHost : MockLoggingService, IBuildComponentHost, IBuildComponent
+        private sealed class MockHost : MockLoggingService, IBuildComponentHost, IBuildComponent
         {
             #region IBuildComponentHost Members
 
@@ -1792,32 +1857,14 @@ Done building target ""Build"" in project ""build.proj"".".Replace("\r\n", "\n")
                 };
             }
 
+            public TComponent GetComponent<TComponent>(BuildComponentType type) where TComponent : IBuildComponent
+                => (TComponent)GetComponent(type);
+
             /// <summary>
             /// Registers a component factory
             /// </summary>
             public void RegisterFactory(BuildComponentType type, BuildComponentFactoryDelegate factory)
             {
-            }
-
-            #endregion
-
-            #region IBuildComponent Members
-
-            /// <summary>
-            /// Sets the component host
-            /// </summary>
-            /// <param name="host">The component host</param>
-            public void InitializeComponent(IBuildComponentHost host)
-            {
-                throw new NotImplementedException();
-            }
-
-            /// <summary>
-            /// Shuts down the component
-            /// </summary>
-            public void ShutdownComponent()
-            {
-                throw new NotImplementedException();
             }
 
             #endregion

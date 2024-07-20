@@ -1,15 +1,15 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Microsoft.Build.Evaluation;
-using Xunit;
 using System.Text;
+using Microsoft.Build.Evaluation;
 using Microsoft.Build.Internal;
 using Microsoft.Build.Shared;
+using Xunit;
 
 #nullable disable
 
@@ -63,7 +63,7 @@ namespace Microsoft.Build.UnitTests.Evaluation
             };
 
             var itemsForI = items.Where(i => i.ItemType == "i").ToList();
-            ObjectModelHelpers.AssertItems(new [] {"a", "b", "c"}, itemsForI, mI2_1);
+            ObjectModelHelpers.AssertItems(new[] { "a", "b", "c" }, itemsForI, mI2_1);
 
             var mI2_2 = new Dictionary<string, string>
             {
@@ -75,7 +75,7 @@ namespace Microsoft.Build.UnitTests.Evaluation
             ObjectModelHelpers.AssertItems(
                 new[] { "a", "b", "c", "d", "e", "f", "a", "b", "c" },
                 itemsForI2,
-                new [] { mI2_1, mI2_1 , mI2_1, mI2_2, mI2_2, mI2_2, mI2_2, mI2_2, mI2_2 });
+                new[] { mI2_1, mI2_1, mI2_1, mI2_2, mI2_2, mI2_2, mI2_2, mI2_2, mI2_2 });
         }
 
         [Theory]
@@ -89,8 +89,7 @@ namespace Microsoft.Build.UnitTests.Evaluation
 
             <i Include='@(i2)'/>
 
-            <i2 Remove='a;b;c'/>"
-            )]
+            <i2 Remove='a;b;c'/>")]
         // remove the items via a glob
         [InlineData(
             @"
@@ -101,8 +100,7 @@ namespace Microsoft.Build.UnitTests.Evaluation
 
             <i Include='@(i2)'/>
 
-            <i2 Remove='*'/>"
-            )]
+            <i2 Remove='*'/>")]
         public void RemoveShouldPreserveIntermediaryReferences(string content)
         {
             IList<ProjectItem> items = ObjectModelHelpers.GetItemsFromFragment(content, allItems: true);
@@ -206,7 +204,7 @@ namespace Microsoft.Build.UnitTests.Evaluation
             };
 
             var itemsForI = items.Where(i => i.ItemType == "i").ToList();
-            ObjectModelHelpers.AssertItems(new[] { "a", "b", "c" }, itemsForI, new [] {a, b, c});
+            ObjectModelHelpers.AssertItems(new[] { "a", "b", "c" }, itemsForI, new[] { a, b, c });
 
             var metadataForI2 = new Dictionary<string, string>
             {
@@ -458,7 +456,7 @@ namespace Microsoft.Build.UnitTests.Evaluation
 
             var items = ObjectModelHelpers.GetItems(projectContent);
 
-            ObjectModelHelpers.AssertItems(new []{"2"}, items);
+            ObjectModelHelpers.AssertItems(new[] { "2" }, items);
         }
 
         [Fact]
@@ -564,8 +562,9 @@ namespace Microsoft.Build.UnitTests.Evaluation
 <Project>
    <Import Project=`foo/*.props`/>
    <ItemGroup>
-      <i Include=`**/foo/**/*.cs`/>
-      <i2 Include=`**/bar/**/*.cs`/>
+      <i Include=`**/foo/**/*.cs` />
+      <i2 Include=`**/bar/**/*.cs` />
+      <i3 Include=`**/yyy/**/*.cs` Exclude=`mock-value` />
    </ItemGroup>
 
    <ItemGroup>
@@ -586,11 +585,11 @@ namespace Microsoft.Build.UnitTests.Evaluation
 ".Cleanup();
             using (var env = TestEnvironment.Create())
             {
-                var projectFiles = env.CreateTestProjectWithFiles(content, new[] {"foo/extra.props", "foo/a.cs", "foo/b.cs", "bar/c.cs", "bar/d.cs"});
+                var projectFiles = env.CreateTestProjectWithFiles(content, new[] { "foo/extra.props", "foo/a.cs", "foo/b.cs", "bar/c.cs", "bar/d.cs", "yyy/d.cs" });
 
                 File.WriteAllText(projectFiles.CreatedFiles[0], import);
 
-                env.SetEnvironmentVariable("MsBuildSkipEagerWildCardEvaluationRegexes", ".*foo.*");
+                env.SetEnvironmentVariable("MsBuildSkipEagerWildCardEvaluationRegexes", ".*foo.*;.*yyy*.");
 
                 EngineFileUtilities.CaptureLazyWildcardRegexes();
 
@@ -598,6 +597,7 @@ namespace Microsoft.Build.UnitTests.Evaluation
 
                 Assert.Equal("true", project.GetPropertyValue("FromImport"));
                 Assert.Equal("**/foo/**/*.cs", project.GetConcatenatedItemsOfType("i"));
+                Assert.Equal("**/yyy/**/*.cs", project.GetConcatenatedItemsOfType("i3"));
 
                 var expectedItems = "bar\\c.cs;bar\\d.cs";
 
@@ -650,8 +650,8 @@ namespace Microsoft.Build.UnitTests.Evaluation
 
                     ObjectModelHelpers.AssertItemEvaluationFromProject(
                         projectContents,
-                        inputFiles: new[] {"a.cs", "b.cs", "c.cs"},
-                        expectedInclude: new[] {"a.cs", "b.cs", "c.cs", "b.cs", "c.cs", "b.cs"});
+                        inputFiles: new[] { "a.cs", "b.cs", "c.cs" },
+                        expectedInclude: new[] { "a.cs", "b.cs", "c.cs", "b.cs", "c.cs", "b.cs" });
                 }
             }
             finally

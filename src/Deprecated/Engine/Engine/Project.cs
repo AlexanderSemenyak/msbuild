@@ -1,5 +1,9 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
+// THE ASSEMBLY BUILT FROM THIS SOURCE FILE HAS BEEN DEPRECATED FOR YEARS. IT IS BUILT ONLY TO PROVIDE
+// BACKWARD COMPATIBILITY FOR API USERS WHO HAVE NOT YET MOVED TO UPDATED APIS. PLEASE DO NOT SEND PULL
+// REQUESTS THAT CHANGE THIS FILE WITHOUT FIRST CHECKING WITH THE MAINTAINERS THAT THE FIX IS REQUIRED.
 
 using System;
 using System.Xml;
@@ -69,14 +73,14 @@ namespace Microsoft.Build.BuildEngine
         #region Member Data
 
         // The parent Engine object for this project.
-        private Engine                      parentEngine;
+        private Engine parentEngine;
 
         // Event location contextual information for the current project instance
-        private BuildEventContext                projectBuildEventContext;
+        private BuildEventContext projectBuildEventContext;
 
         // We need to know if the projectContextId which was generated during the
         // instantiation of the project instance has been used. If the Id has been used,
-        // which would make the value true, we will then generate a new projectContextId 
+        // which would make the value true, we will then generate a new projectContextId
         // on the next project started event
         private bool haveUsedInitialProjectContextId;
 
@@ -85,77 +89,77 @@ namespace Microsoft.Build.BuildEngine
         private int projectId;
 
         // indicates if the project (file) and all its imported files are validated against a schema
-        private bool                        isValidated;
+        private bool isValidated;
 
         // the schema against which to validate the project (file) and all its imported files
-        private string                      schemaFile;
+        private string schemaFile;
 
         // The XML document for the main project file.
-        private XmlDocument                 mainProjectEntireContents;
+        private XmlDocument mainProjectEntireContents;
 
         // The <project> XML node of the main project file which was loaded
         // (as opposed to any imported project files).
-        private XmlElement                  mainProjectElement;
+        private XmlElement mainProjectElement;
 
         // The default targets, specified as an optional attribute on the
         // <Project> element.
-        private string[]                    defaultTargetNames;
+        private string[] defaultTargetNames;
 
         // The names of the targets specified in the InitialTargets attributes
         // on the <Project> node.  We separate the ones in the main project from
         // the ones in the imported projects to make the object model more sensible.
         // These ArrayLists contain strings.
-        private ArrayList                   initialTargetNamesInMainProject;
-        private ArrayList                   initialTargetNamesInImportedProjects;
+        private ArrayList initialTargetNamesInMainProject;
+        private ArrayList initialTargetNamesInImportedProjects;
 
         // The fully qualified path to the project file for this project.
         // If the project was loaded from in-memory XML, this will empty string.
-        private string                      fullFileName;
+        private string fullFileName;
 
         // This is the directory containing the project file
-        private string                      projectDirectory;
+        private string projectDirectory;
 
         // The set of global properties for this project.  For example, global
         // properties may be set at the command-line via the /p: switch.
-        private BuildPropertyGroup               globalProperties;
+        private BuildPropertyGroup globalProperties;
 
         // The set of properties coming from environment variables.
-        private BuildPropertyGroup               environmentProperties;
+        private BuildPropertyGroup environmentProperties;
 
         // The set of XMake reserved properties for this project (e.g.,
         // XMakeProjectName).
-        private BuildPropertyGroup               reservedProperties;
+        private BuildPropertyGroup reservedProperties;
 
         // The raw persisted <PropertyGroup>'s in the project file.
-        private BuildPropertyGroupCollection     rawPropertyGroups;
+        private BuildPropertyGroupCollection rawPropertyGroups;
 
         // The set of all <Target>s in the project file after they've been evaluated
         // and made useful for end-users.
-        private TargetCollection            targets;
+        private TargetCollection targets;
 
         // The name of the first target in the main project. This is used as the default
         // target when one isn't specified in some other way.
-        private string                      nameOfFirstTarget = null;
+        private string nameOfFirstTarget = null;
 
         // The final set of evaluated and expanded property values for this
         // project, which includes all global properties, environment properties,
         // reserved properties, and properties in the main project file and
         // any imported project files - taking into account property precedence
         // rules, of course.
-        internal BuildPropertyGroup              evaluatedProperties;
+        internal BuildPropertyGroup evaluatedProperties;
 
         // This hash table keeps track of the properties that are referenced inside
         // any "Condition" attribute in the entire project, and for each such
         // property, we keep the list of string values that the property is
         // being tested against.  This is how the IDE gets at the list of
         // configurations for a project.
-        private Hashtable                   conditionedPropertiesTable;
+        private Hashtable conditionedPropertiesTable;
 
         // The raw persisted <ItemGroup>'s in the project file.
-        private BuildItemGroupCollection         rawItemGroups;
+        private BuildItemGroupCollection rawItemGroups;
 
         // The raw collection of all grouping elements (ItemGroup, BuildPropertyGroup, and Choose.
-        private GroupingCollection          rawGroups;
+        private GroupingCollection rawGroups;
 
         // Each entry in this contains an BuildItemGroup.  Each of these
         // ItemGroups represents a list of "BuildItem" objects all of the same item type.
@@ -164,7 +168,7 @@ namespace Microsoft.Build.BuildEngine
         // (the tasks).  It represents true reality, and therefore it gets
         // re-computed every time something in the project changes (like a property
         // value for example).
-        internal Hashtable                  evaluatedItemsByName;
+        internal Hashtable evaluatedItemsByName;
 
         // All the item definitions in the logical project, including imports.
         // (Imported definitions don't need to be distinguished, since we don't have OM support
@@ -178,7 +182,7 @@ namespace Microsoft.Build.BuildEngine
         /// and therefore it gets re-computed every time something in the project changes
         /// (like a property value for example).
         /// </summary>
-        internal BuildItemGroup                  evaluatedItems;
+        internal BuildItemGroup evaluatedItems;
 
         // This is a Hashtable of ItemGroups.  Each BuildItemGroup contains a list of Items
         // of a the same type.  The key for the Hashtable is the "item type" string.
@@ -199,7 +203,7 @@ namespace Microsoft.Build.BuildEngine
         // get used for "build" purposes, since it is not entirely accurate and up-to-
         // date.  It is only to be consumed by the IDE for purposes of displaying
         // items in the Solution Explorer (for example).
-        internal Hashtable                  evaluatedItemsByNameIgnoringCondition;
+        internal Hashtable evaluatedItemsByNameIgnoringCondition;
 
         // A single BuildItemGroup containing all the items in the project, after
         // wildcard and property expansion, but ignoring "Condition"s.  So, for example,
@@ -218,52 +222,52 @@ namespace Microsoft.Build.BuildEngine
         // get used for "build" purposes, since it is not entirely accurate and up-to-
         // date.  It is only to be consumed by the IDE for purposes of displaying
         // items in the Solution Explorer (for example).
-        internal BuildItemGroup                  evaluatedItemsIgnoringCondition;
+        internal BuildItemGroup evaluatedItemsIgnoringCondition;
 
         // This array list contains the ordered list of <UsingTask> elements in
         // the project file and all the imported files.  When we
         // object model for these things has been worked out, there should
         // be an actual class here that we define, rather than an array list.
-        private UsingTaskCollection         usingTasks;
+        private UsingTaskCollection usingTasks;
 
         // holds all the tasks the project knows about and the assemblies they exist in
         // NOTE: tasks and their assemblies are declared in a project with the <UsingTask> tag
-        private ITaskRegistry                taskRegistry;
+        private ITaskRegistry taskRegistry;
 
         // The <ProjectExtensions> XML node if there is one.
-        private XmlNode                     projectExtensionsNode;
+        private XmlNode projectExtensionsNode;
 
         // This hash table simply keeps track of the list of imported project
         // files so that we can detect a circular import to prevent infinite
         // recursion.
-        private ImportCollection            imports;
+        private ImportCollection imports;
 
         // Tells us if anything has changed that would require us to re-read and re-
         // process the XML.  The main scenario here would be the addition or removal
         // of an <Import> tag.
-        private bool                        dirtyNeedToReprocessXml;
+        private bool dirtyNeedToReprocessXml;
 
         // Tells us if anything in this project has changed since the last time
         // we evaluated all our properties and items.  That could include all sorts
         // of things like properties (including global properties), items, etc.
         // Note: The only reason this is internal is for unit tests.
-        private bool                       dirtyNeedToReevaluate;
+        private bool dirtyNeedToReevaluate;
 
         // Tells us whether we need to re-evaluate the conditions on global warnings and errors.
-        internal bool                        dirtyNeedToReevaluateGlobalWarningsAndErrors;
+        internal bool dirtyNeedToReevaluateGlobalWarningsAndErrors;
 
         // Tells us if anything in this project has changed since the last time
         // we either loaded or saved the project file to disk.  That could include all sorts
         // of things like properties (including global properties), items, etc.
-        private bool                        dirtyNeedToSaveProjectFile;
+        private bool dirtyNeedToSaveProjectFile;
 
         // Tells us the timestamp of when the project was last touched in a way
         // that would require it to need to be saved.
-        private DateTime                    timeOfLastDirty;
+        private DateTime timeOfLastDirty;
 
         // Tells us whether the project is currently in the "reset" state, meaning
         // that all of the targets are marked NotStarted.
-        private bool                        isReset;
+        private bool isReset;
 
         // This variable indicates whether a particular project was loaded by the host
         // (e.g., the IDE) and therefore needs to be kept around permanently, or whether
@@ -273,7 +277,7 @@ namespace Microsoft.Build.BuildEngine
         // way for the host to change it.  The only entity that should every be changing
         // this to "false" is the Engine itself because it knows that we're just building
         // this project and don't need to keep it around for design-time scenarios.
-        private bool                        isLoadedByHost;
+        private bool isLoadedByHost;
 
         // This controls whether or not the building of targets/tasks is enabled for this
         // project.  This is for security purposes in case a host wants to closely
@@ -603,9 +607,9 @@ namespace Microsoft.Build.BuildEngine
         {
             get
             {
-                // Return the concatenation of the initial target names from the main project and the ones from 
+                // Return the concatenation of the initial target names from the main project and the ones from
                 // all the imported projects.  Join target names together with semicolons in between.
-                return String.Join("; ", (string[]) this.CombinedInitialTargetNames.ToArray(typeof(string)));
+                return String.Join("; ", (string[])this.CombinedInitialTargetNames.ToArray(typeof(string)));
             }
 
             set
@@ -706,7 +710,7 @@ namespace Microsoft.Build.BuildEngine
         {
             get
             {
-                return buildingCount>0;
+                return buildingCount > 0;
             }
         }
 
@@ -778,7 +782,7 @@ namespace Microsoft.Build.BuildEngine
         {
             get
             {
-                // We could have a toolsversion already (either from the Project element, or 
+                // We could have a toolsversion already (either from the Project element, or
                 // from an externally set override value). If not, read it off the Project
                 // element now
                 if (!OverridingToolsVersion)
@@ -1211,7 +1215,7 @@ namespace Microsoft.Build.BuildEngine
             {
                 using (StringWriter stringWriter = new StringWriter(CultureInfo.InvariantCulture))
                 {
-                    this.Save((TextWriter) stringWriter);
+                    this.Save((TextWriter)stringWriter);
                     return stringWriter.ToString();
                 }
             }
@@ -1506,7 +1510,7 @@ namespace Microsoft.Build.BuildEngine
             (
             )
         {
-            this.MarkProjectAsDirty ();
+            this.MarkProjectAsDirty();
             this.dirtyNeedToReprocessXml = true;
         }
 
@@ -1966,7 +1970,7 @@ namespace Microsoft.Build.BuildEngine
             {
                 BuildEventFileInfo fileInfo = new BuildEventFileInfo(e);
 
-                ParentEngine.LoggingServices.LogError(projectBuildEventContext, null,fileInfo, "InvalidProjectFile", e.Message);
+                ParentEngine.LoggingServices.LogError(projectBuildEventContext, null, fileInfo, "InvalidProjectFile", e.Message);
 
                 ProjectFileErrorUtilities.VerifyThrowInvalidProjectFile(false, fileInfo,
                     "InvalidProjectFile", e.Message);
@@ -2747,9 +2751,9 @@ namespace Microsoft.Build.BuildEngine
                     // the same type as the new item being added.
                     foreach (BuildItem originalItem in itemGroup)
                     {
-                        if ( String.Equals( originalItem.Name, itemName, StringComparison.OrdinalIgnoreCase))
+                        if (String.Equals(originalItem.Name, itemName, StringComparison.OrdinalIgnoreCase))
                         {
-                            // If the new item that the user is trying to add is already covered by 
+                            // If the new item that the user is trying to add is already covered by
                             // a wildcard in an existing item of the project, then there's really
                             // no need to physically touch the project file.  As long as the new item
                             // is on disk, the next reevaluation will automatically pick it up.  When
@@ -2775,7 +2779,7 @@ namespace Microsoft.Build.BuildEngine
 
                                 // Don't bother adding to item lists by name, as we're going to have to evaluate the project as a whole later anyway
 
-                                // We haven't actually changed the XML for the project, because we're 
+                                // We haven't actually changed the XML for the project, because we're
                                 // just piggybacking onto an existing item that was a wildcard.  However,
                                 // we should reevaluate on the next build.
                                 this.MarkProjectAsDirtyForReevaluation();
@@ -2928,7 +2932,7 @@ namespace Microsoft.Build.BuildEngine
                 // If the item doesn't have a parent BuildItemGroup associated with it, then it
                 // must not be a persisted item that's actually declared in the project file.
                 parentItemGroup = itemToRemove.ParentPersistedItemGroup;
-                error.VerifyThrowInvalidOperation (parentItemGroup != null, "ObjectIsNotInProject");
+                error.VerifyThrowInvalidOperation(parentItemGroup != null, "ObjectIsNotInProject");
             }
             else
             {
@@ -2954,7 +2958,7 @@ namespace Microsoft.Build.BuildEngine
                 this.RemoveItemGroup(parentItemGroup);
             }
 
-            this.MarkProjectAsDirty ();
+            this.MarkProjectAsDirty();
         }
 
         /// <summary>
@@ -3041,7 +3045,7 @@ namespace Microsoft.Build.BuildEngine
             }
 
             // Look in the extensions node and see if there is a child that matches
-            XmlElement idElement = (XmlElement) projectExtensionsNode[id];
+            XmlElement idElement = (XmlElement)projectExtensionsNode[id];
 
             // Found anything?
             if (idElement == null)
@@ -3109,7 +3113,7 @@ namespace Microsoft.Build.BuildEngine
             string targetName
             )
         {
-            return this.ParentEngine.BuildProject(this, (targetName == null) ? null : new string[] {targetName},
+            return this.ParentEngine.BuildProject(this, (targetName == null) ? null : new string[] { targetName },
                 null, BuildSettings.None);
         }
 
@@ -3233,7 +3237,7 @@ namespace Microsoft.Build.BuildEngine
                 if (buildContext.CurrentBuildContextState == ProjectBuildState.BuildContextState.BuildingCurrentTarget)
                 {
                     // Execute the next appropriate operation for this target
-                    ErrorUtilities.VerifyThrow( taskExecutionContext != null, "Task context should be non-null");
+                    ErrorUtilities.VerifyThrow(taskExecutionContext != null, "Task context should be non-null");
                     taskExecutionContext.ParentTarget.ContinueBuild(taskExecutionContext.BuildContext, taskExecutionContext);
                 }
                 else if (buildContext.CurrentBuildContextState == ProjectBuildState.BuildContextState.StartingFirstTarget)
@@ -3275,11 +3279,11 @@ namespace Microsoft.Build.BuildEngine
             }
             finally
             {
-                if ( (exitedDueToError || buildContext.BuildComplete) &&
+                if ((exitedDueToError || buildContext.BuildComplete) &&
                      buildContext.CurrentBuildContextState != ProjectBuildState.BuildContextState.RequestFilled)
                 {
                     // If the target that threw an exception is being built due to an
-                    // dependson or onerror relationship, it is necessary to make sure 
+                    // dependson or onerror relationship, it is necessary to make sure
                     // the buildrequests waiting on targets below it get notified of the failure. In single
                     // threaded mode there is only a single outstanding request so this issue is avoided.
                     if (exitedDueToError)
@@ -3342,7 +3346,7 @@ namespace Microsoft.Build.BuildEngine
 
         internal void CalculateNextActionForProjectContext(ProjectBuildState buildContext)
         {
-            // If the build request has been already complete 
+            // If the build request has been already complete
             if (buildContext.CurrentBuildContextState == ProjectBuildState.BuildContextState.RequestFilled)
             {
                 return;
@@ -3404,7 +3408,7 @@ namespace Microsoft.Build.BuildEngine
                             // Check if there are no more targets to run
                             if (buildContext.GetNextTarget() == null)
                             {
-                                // The request is complete 
+                                // The request is complete
                                 buildContext.RecordBuildCompletion(true);
                             }
                             else
@@ -3471,30 +3475,30 @@ namespace Microsoft.Build.BuildEngine
             BuildEventContext buildEventContext = null;
 
             // Determine if a project started event is required to be fired, if so we may need a new projectContextId
-             if (buildRequest.FireProjectStartedFinishedEvents)
-             {
-                 //If we have not already used the context from the project yet, lets use that as our first event context
-                 if (!haveUsedInitialProjectContextId)
-                 {
-                     buildEventContext = projectBuildEventContext;
-                     haveUsedInitialProjectContextId = true;
-                 }
-                 else // We are going to need a new Project context Id and a new buildEventContext
-                 {
-                     projectContextId = parentEngine.GetNextProjectId();
-                 }
-             }
+            if (buildRequest.FireProjectStartedFinishedEvents)
+            {
+                //If we have not already used the context from the project yet, lets use that as our first event context
+                if (!haveUsedInitialProjectContextId)
+                {
+                    buildEventContext = projectBuildEventContext;
+                    haveUsedInitialProjectContextId = true;
+                }
+                else // We are going to need a new Project context Id and a new buildEventContext
+                {
+                    projectContextId = parentEngine.GetNextProjectId();
+                }
+            }
 
-             if (buildEventContext == null)
-             {
-                 buildEventContext = new BuildEventContext
-                                   (
-                                       projectBuildEventContext.NodeId,
-                                       projectBuildEventContext.TargetId,
-                                       projectContextId,
-                                       projectBuildEventContext.TaskId
-                                    );
-             }
+            if (buildEventContext == null)
+            {
+                buildEventContext = new BuildEventContext
+                                  (
+                                      projectBuildEventContext.NodeId,
+                                      projectBuildEventContext.TargetId,
+                                      projectContextId,
+                                      projectBuildEventContext.TaskId
+                                   );
+            }
 
             bool exitedDueToError = true;
 
@@ -3519,9 +3523,9 @@ namespace Microsoft.Build.BuildEngine
                     // Flag the start of the project build.
                     //
                     // This also passes all the current properties/items and their values. The logger might want to use the
-                    // object it gets from this event to see updated property/item values later in the build: so be 
-                    // careful to use the original "evaluatedProperties" and "evaluatedItems" table, not the clone 
-                    // "EvaluatedProperties" or "EvaluatedItems" table. It's fine to pass these live tables, because we're 
+                    // object it gets from this event to see updated property/item values later in the build: so be
+                    // careful to use the original "evaluatedProperties" and "evaluatedItems" table, not the clone
+                    // "EvaluatedProperties" or "EvaluatedItems" table. It's fine to pass these live tables, because we're
                     // wrapping them in read-only proxies.
                     BuildPropertyGroup propertyGroupForStartedEvent = this.evaluatedProperties;
 
@@ -3733,8 +3737,8 @@ namespace Microsoft.Build.BuildEngine
         /// <owner>RGoel</owner>
         private void ProcessProjectAttributes
         (
-            XmlElement  projectElement,
-            bool        importedProject
+            XmlElement projectElement,
+            bool importedProject
         )
         {
             // Make sure the <Project> node has been given to us.
@@ -3844,7 +3848,7 @@ namespace Microsoft.Build.BuildEngine
 
             try
             {
-                // Make the correct project directory available. This is needed because it is 
+                // Make the correct project directory available. This is needed because it is
                 // used for evaluating "exists" in conditional expressions, for example on <Import> elements.
                 Project.PerThreadProjectDirectory = ProjectDirectory;
 
@@ -3863,15 +3867,15 @@ namespace Microsoft.Build.BuildEngine
                             this.rawItemGroups.InsertAtEnd(newItemGroup);
                             break;
 
-                    // Process the <PropertyGroup> element.
-                    case XMakeElements.propertyGroup:
-                        BuildPropertyGroup newPropertyGroup = new BuildPropertyGroup(this, childElement, importedProject);
-                        newPropertyGroup.EnsureNoReservedProperties();
-                        this.rawPropertyGroups.InsertAtEnd(newPropertyGroup);
-                        // PropertyGroups/Chooses are evaluated immediately during this scan, as they're needed to figure out whether
-                        // we include Imports.
-                        newPropertyGroup.Evaluate(this.evaluatedProperties, this.conditionedPropertiesTable, ProcessingPass.Pass1);
-                        break;
+                        // Process the <PropertyGroup> element.
+                        case XMakeElements.propertyGroup:
+                            BuildPropertyGroup newPropertyGroup = new BuildPropertyGroup(this, childElement, importedProject);
+                            newPropertyGroup.EnsureNoReservedProperties();
+                            this.rawPropertyGroups.InsertAtEnd(newPropertyGroup);
+                            // PropertyGroups/Chooses are evaluated immediately during this scan, as they're needed to figure out whether
+                            // we include Imports.
+                            newPropertyGroup.Evaluate(this.evaluatedProperties, this.conditionedPropertiesTable, ProcessingPass.Pass1);
+                            break;
 
                         // Process the <Choose> element.
                         case XMakeElements.choose:
@@ -3936,7 +3940,7 @@ namespace Microsoft.Build.BuildEngine
                         case XMakeElements.importGroup:
                             foreach (XmlElement importGroupChild in childElement.ChildNodes)
                             {
-                                switch(importGroupChild.Name)
+                                switch (importGroupChild.Name)
                                 {
                                     case XMakeElements.import:
                                         ProcessImportElement(importGroupChild, projectDirectoryLocation, importedProject);
@@ -3977,9 +3981,9 @@ namespace Microsoft.Build.BuildEngine
         /// <param name="importedProject"></param>
         private void ProcessImportElement
         (
-            XmlElement  importElement,
-            string      projectDirectoryLocation,
-            bool        importedProject
+            XmlElement importElement,
+            string projectDirectoryLocation,
+            bool importedProject
         )
         {
             Import temp = new Import(importElement, this, importedProject);
@@ -4008,7 +4012,7 @@ namespace Microsoft.Build.BuildEngine
 
             for (int i = 0; i < importedFilenames.Length; i++)
             {
-                string importedFilename = EscapingUtilities.UnescapeAll(importedFilenames[i]);     
+                string importedFilename = EscapingUtilities.UnescapeAll(importedFilenames[i]);
                 ProjectErrorUtilities.VerifyThrowInvalidProject(!string.IsNullOrEmpty(importedFilename),
                     importElement, "MissingRequiredAttribute",
                     XMakeAttributes.project, XMakeElements.import);
@@ -4029,7 +4033,9 @@ namespace Microsoft.Build.BuildEngine
                 catch (Exception e) // Catching Exception, but rethrowing unless it's an IO related exception.
                 {
                     if (ExceptionHandling.NotExpectedException(e))
+                    {
                         throw;
+                    }
 
                     ProjectErrorUtilities.VerifyThrowInvalidProject(false, importElement, "InvalidAttributeValueWithException", importedFilename, XMakeAttributes.project, XMakeElements.import, e.Message);
                 }
@@ -4155,7 +4161,9 @@ namespace Microsoft.Build.BuildEngine
                             catch (Exception e)
                             {
                                 if (ExceptionHandling.NotExpectedException(e))
+                                {
                                     throw;
+                                }
 
                                 BuildEventFileInfo fileInfo = new BuildEventFileInfo(import.EvaluatedProjectPath);
                                 ProjectFileErrorUtilities.VerifyThrowInvalidProjectFile(false,
@@ -4271,7 +4279,7 @@ namespace Microsoft.Build.BuildEngine
                 }
                 finally
                 {
-                    // We reset the path back to the original value in case the 
+                    // We reset the path back to the original value in case the
                     // host is depending on the current directory to find projects
                     Project.PerThreadProjectDirectory = currentPerThreadProjectDirectory;
                 }
@@ -4293,11 +4301,11 @@ namespace Microsoft.Build.BuildEngine
             {
                 if (propertyGroup is BuildPropertyGroup)
                 {
-                    ((BuildPropertyGroup) propertyGroup).Evaluate(this.evaluatedProperties, this.conditionedPropertiesTable, ProcessingPass.Pass1);
+                    ((BuildPropertyGroup)propertyGroup).Evaluate(this.evaluatedProperties, this.conditionedPropertiesTable, ProcessingPass.Pass1);
                 }
                 else if (propertyGroup is Choose)
                 {
-                    ((Choose) propertyGroup).Evaluate(this.evaluatedProperties, false, true, this.conditionedPropertiesTable, ProcessingPass.Pass1);
+                    ((Choose)propertyGroup).Evaluate(this.evaluatedProperties, false, true, this.conditionedPropertiesTable, ProcessingPass.Pass1);
                 }
                 else
                 {
@@ -4325,11 +4333,11 @@ namespace Microsoft.Build.BuildEngine
             {
                 if (itemGroup is BuildItemGroup)
                 {
-                    ((BuildItemGroup) itemGroup).Evaluate(this.evaluatedProperties, this.evaluatedItemsByName, ignoreCondition, honorCondition, ProcessingPass.Pass2);
+                    ((BuildItemGroup)itemGroup).Evaluate(this.evaluatedProperties, this.evaluatedItemsByName, ignoreCondition, honorCondition, ProcessingPass.Pass2);
                 }
                 else if (itemGroup is Choose)
                 {
-                    ((Choose) itemGroup).Evaluate(this.evaluatedProperties, ignoreCondition, honorCondition, this.conditionedPropertiesTable, ProcessingPass.Pass2);
+                    ((Choose)itemGroup).Evaluate(this.evaluatedProperties, ignoreCondition, honorCondition, this.conditionedPropertiesTable, ProcessingPass.Pass2);
                 }
                 else
                 {
@@ -4368,7 +4376,7 @@ namespace Microsoft.Build.BuildEngine
             // used as a key into the overall hash table, is case-insensitive.
             BuildItemGroup itemListByNameIgnoringCondition = (BuildItemGroup)this.evaluatedItemsByNameIgnoringCondition[item.Name];
 
-            // If no such BuildItemGroup exists yet, create a new BuildItemGroup and add it to 
+            // If no such BuildItemGroup exists yet, create a new BuildItemGroup and add it to
             // the hashtable of ItemGroups by type.
             if (itemListByNameIgnoringCondition == null)
             {
@@ -4395,7 +4403,7 @@ namespace Microsoft.Build.BuildEngine
             // used as a key into the overall hash table, is case-insensitive.
             BuildItemGroup itemListByName = (BuildItemGroup)this.evaluatedItemsByName[item.Name];
 
-            // If no such BuildItemGroup exists yet, create a new BuildItemGroup and add it to 
+            // If no such BuildItemGroup exists yet, create a new BuildItemGroup and add it to
             // the hashtable of ItemGroups by type.
             if (itemListByName == null)
             {

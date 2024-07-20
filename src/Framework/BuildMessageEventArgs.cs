@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.IO;
@@ -60,13 +60,11 @@ namespace Microsoft.Build.Framework
         /// <param name="helpKeyword">help keyword </param>
         /// <param name="senderName">name of event sender</param>
         /// <param name="importance">importance of the message</param>
-        public BuildMessageEventArgs
-        (
+        public BuildMessageEventArgs(
             string message,
             string helpKeyword,
             string senderName,
-            MessageImportance importance
-        )
+            MessageImportance importance)
             : this(message, helpKeyword, senderName, importance, DateTime.UtcNow)
         {
         }
@@ -79,14 +77,12 @@ namespace Microsoft.Build.Framework
         /// <param name="senderName">name of event sender</param>
         /// <param name="importance">importance of the message</param>
         /// <param name="eventTimestamp">Timestamp when event was created</param>
-        public BuildMessageEventArgs
-        (
+        public BuildMessageEventArgs(
             string message,
             string helpKeyword,
             string senderName,
             MessageImportance importance,
-            DateTime eventTimestamp
-        )
+            DateTime eventTimestamp)
             : this(message, helpKeyword, senderName, importance, eventTimestamp, null)
         {
             // do nothing
@@ -101,15 +97,13 @@ namespace Microsoft.Build.Framework
         /// <param name="importance">importance of the message</param>
         /// <param name="eventTimestamp">Timestamp when event was created</param>
         /// <param name="messageArgs">message arguments</param>
-        public BuildMessageEventArgs
-        (
+        public BuildMessageEventArgs(
             string message,
             string helpKeyword,
             string senderName,
             MessageImportance importance,
             DateTime eventTimestamp,
-            params object[] messageArgs
-        )
+            params object[] messageArgs)
             : this(null, null, null, 0, 0, 0, 0, message, helpKeyword, senderName, importance, eventTimestamp, messageArgs)
         {
             // do nothing
@@ -129,8 +123,7 @@ namespace Microsoft.Build.Framework
         /// <param name="helpKeyword">help keyword </param>
         /// <param name="senderName">name of event sender</param>
         /// <param name="importance">importance of the message</param>
-        public BuildMessageEventArgs
-        (
+        public BuildMessageEventArgs(
             string subcategory,
             string code,
             string file,
@@ -141,8 +134,7 @@ namespace Microsoft.Build.Framework
             string message,
             string helpKeyword,
             string senderName,
-            MessageImportance importance
-        )
+            MessageImportance importance)
             : this(subcategory, code, file, lineNumber, columnNumber, endLineNumber, endColumnNumber, message, helpKeyword, senderName, importance, DateTime.UtcNow)
         {
             // do nothing
@@ -163,8 +155,7 @@ namespace Microsoft.Build.Framework
         /// <param name="senderName">name of event sender</param>
         /// <param name="importance">importance of the message</param>
         /// <param name="eventTimestamp">custom timestamp for the event</param>
-        public BuildMessageEventArgs
-        (
+        public BuildMessageEventArgs(
             string subcategory,
             string code,
             string file,
@@ -176,8 +167,7 @@ namespace Microsoft.Build.Framework
             string helpKeyword,
             string senderName,
             MessageImportance importance,
-            DateTime eventTimestamp
-        )
+            DateTime eventTimestamp)
             : this(subcategory, code, file, lineNumber, columnNumber, endLineNumber, endColumnNumber, message, helpKeyword, senderName, importance, eventTimestamp, messageArgs: null)
         {
             // do nothing
@@ -199,8 +189,7 @@ namespace Microsoft.Build.Framework
         /// <param name="importance">importance of the message</param>
         /// <param name="eventTimestamp">custom timestamp for the event</param>
         /// <param name="messageArgs">message arguments</param>
-        public BuildMessageEventArgs
-        (
+        public BuildMessageEventArgs(
             string subcategory,
             string code,
             string file,
@@ -213,8 +202,7 @@ namespace Microsoft.Build.Framework
             string senderName,
             MessageImportance importance,
             DateTime eventTimestamp,
-            params object[] messageArgs
-        )
+            params object[] messageArgs)
             : base(message, helpKeyword, senderName, eventTimestamp, messageArgs)
         {
             this.importance = importance;
@@ -225,6 +213,20 @@ namespace Microsoft.Build.Framework
             this.columnNumber = columnNumber;
             this.endLineNumber = endLineNumber;
             this.endColumnNumber = endColumnNumber;
+        }
+
+        protected BuildMessageEventArgs(
+           string message,
+           string file,
+           int lineNumber,
+           int columnNumber,
+           MessageImportance importance)
+            : base(message, helpKeyword: null, senderName: null)
+        {
+            this.importance = importance;
+            this.file = file;
+            this.lineNumber = lineNumber;
+            this.columnNumber = columnNumber;
         }
 
         private MessageImportance importance;
@@ -316,17 +318,21 @@ namespace Microsoft.Build.Framework
         public string Subcategory => subcategory;
 
         /// <summary>
-        /// Code associated with event. 
+        /// Code associated with event.
         /// </summary>
         public string Code => code;
 
         /// <summary>
         /// File associated with event.
         /// </summary>
-        public string File => file;
+        public string File
+        {
+            get => file;
+            internal set => file = value;
+        }
 
         /// <summary>
-        /// Line number of interest in associated file. 
+        /// Line number of interest in associated file.
         /// </summary>
         public int LineNumber
         {
@@ -335,7 +341,7 @@ namespace Microsoft.Build.Framework
         }
 
         /// <summary>
-        /// Column number of interest in associated file. 
+        /// Column number of interest in associated file.
         /// </summary>
         public int ColumnNumber
         {
@@ -344,12 +350,12 @@ namespace Microsoft.Build.Framework
         }
 
         /// <summary>
-        /// Ending line number of interest in associated file. 
+        /// Ending line number of interest in associated file.
         /// </summary>
         public int EndLineNumber => endLineNumber;
 
         /// <summary>
-        /// Ending column number of interest in associated file. 
+        /// Ending column number of interest in associated file.
         /// </summary>
         public int EndColumnNumber => endColumnNumber;
 

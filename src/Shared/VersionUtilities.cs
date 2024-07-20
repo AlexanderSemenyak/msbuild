@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Collections;
@@ -25,7 +25,7 @@ namespace Microsoft.Build.Shared
         }
 
         /// <summary>
-        /// Go though an enumeration and create a sorted list of strings which can be parsed as versions. Keep around the original 
+        /// Go though an enumeration and create a sorted list of strings which can be parsed as versions. Keep around the original
         /// string because it may contain a v and this would be required to create the correct path on disk if the string was part of a path.
         /// </summary>
         internal static SortedDictionary<Version, List<string>> GatherVersionStrings(Version targetPlatformVersion, IEnumerable versions)
@@ -96,7 +96,7 @@ namespace Microsoft.Build.Shared
         }
     }
 
-    sealed internal class ReverseStringGenericComparer : IComparer<string>
+    internal sealed class ReverseStringGenericComparer : IComparer<string>
     {
         /// <summary>
         /// Static accessor for a ReverseVersionGenericComparer
@@ -113,7 +113,7 @@ namespace Microsoft.Build.Shared
         }
     }
 
-    sealed internal class ReverseVersionGenericComparer : IComparer<Version>
+    internal sealed class ReverseVersionGenericComparer : IComparer<Version>
     {
         /// <summary>
         /// Static accessor for a ReverseVersionGenericComparer

@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Collections;
@@ -12,9 +12,9 @@ namespace Microsoft.Build.Logging.StructuredLogger
     /// <summary>
     /// This class encapsulates functionality for a collection of properties (name value pairs) in a
     /// hierarchical way. (e.g. if the parameter is defined and identical in the parent, it is not
-    /// stored in this instance). 
+    /// stored in this instance).
     /// </summary>
-    internal class PropertyBag
+    internal sealed class PropertyBag
     {
         /// <summary>
         /// The parent instance.

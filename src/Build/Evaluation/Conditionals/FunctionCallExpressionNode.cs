@@ -1,9 +1,10 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Collections.Generic;
 using System.IO;
+using Microsoft.Build.BackEnd.Logging;
 using Microsoft.Build.Shared;
 
 using TaskItem = Microsoft.Build.Execution.ProjectItemInstance.TaskItem;
@@ -62,7 +63,7 @@ namespace Microsoft.Build.Evaluation
                     // Ignore invalid characters or path related exceptions
 
                     // We will ignore the PathTooLong exception caused by GetFullPath because in single proc this code
-                    // is not executed and the condition is just evaluated to false as File.Exists and Directory.Exists does not throw in this situation. 
+                    // is not executed and the condition is just evaluated to false as File.Exists and Directory.Exists does not throw in this situation.
                     // To be consistant with that we will return a false in this case also.
                     // DevDiv Bugs: 46035
 
@@ -186,8 +187,8 @@ namespace Microsoft.Build.Evaluation
         /// </summary>
         private void VerifyArgumentCount(int expected, ConditionEvaluator.IConditionEvaluationState state)
         {
-            ProjectErrorUtilities.VerifyThrowInvalidProject
-                (_arguments.Count == expected,
+            ProjectErrorUtilities.VerifyThrowInvalidProject(
+                _arguments.Count == expected,
                  state.ElementLocation,
                  "IncorrectNumberOfFunctionArguments",
                  state.Condition,
