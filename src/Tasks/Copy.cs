@@ -287,8 +287,7 @@ namespace Microsoft.Build.Tasks
                 MakeFileWriteable(destinationFileState, true);
             }
 
-            if (ChangeWaves.AreFeaturesEnabled(ChangeWaves.Wave17_8) &&
-                Traits.Instance.EscapeHatches.CopyWithoutDelete != true &&
+            if (!Traits.Instance.EscapeHatches.CopyWithoutDelete &&
                 destinationFileState.FileExists &&
                 !destinationFileState.IsReadOnly)
             {
@@ -755,7 +754,11 @@ namespace Microsoft.Build.Tasks
                         string src = FileUtilities.NormalizePath(sourceFolder.ItemSpec);
                         string srcName = Path.GetFileName(src);
 
-                        (string[] filesInFolder, _, _) = FileMatcher.Default.GetFiles(src, "**");
+                        (string[] filesInFolder, _, _, string globFailure) = FileMatcher.Default.GetFiles(src, "**");
+                        if (globFailure != null)
+                        {
+                            Log.LogMessage(MessageImportance.Low, globFailure);
+                        }
 
                         foreach (string file in filesInFolder)
                         {

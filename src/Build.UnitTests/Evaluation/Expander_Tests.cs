@@ -40,8 +40,6 @@ namespace Microsoft.Build.UnitTests.Evaluation
         private string _dateToParse = new DateTime(2010, 12, 25).ToString(CultureInfo.CurrentCulture);
         private static readonly string s_rootPathPrefix = NativeMethodsShared.IsWindows ? "C:\\" : Path.VolumeSeparatorChar.ToString();
 
-        private static bool IsIntrinsicFunctionOverloadsEnabled => ChangeWaves.AreFeaturesEnabled(ChangeWaves.Wave17_8);
-
         [Fact]
         public void ExpandAllIntoTaskItems0()
         {
@@ -1265,7 +1263,7 @@ namespace Microsoft.Build.UnitTests.Evaluation
                 return;
             }
 
-            Assert.True(false);
+            Assert.Fail();
         }
 
         /// <summary>
@@ -1292,7 +1290,7 @@ namespace Microsoft.Build.UnitTests.Evaluation
                 return;
             }
 
-            Assert.True(false);
+            Assert.Fail();
         }
 
         [Fact]
@@ -1301,7 +1299,7 @@ namespace Microsoft.Build.UnitTests.Evaluation
             MockLogger logger = Helpers.BuildProjectWithNewOMExpectSuccess(@"
 <Project>
   <PropertyGroup>
-    <MyProperty>Value is $([System.Int32]::TryParse(""3"", _))</MyProperty>
+    <MyProperty>Value is $([System.Int32]::TryParse(""3"", out _))</MyProperty>
   </PropertyGroup>
   <Target Name='Build'>
     <Message Text='$(MyProperty)' />
@@ -1317,7 +1315,7 @@ namespace Microsoft.Build.UnitTests.Evaluation
             MockLogger logger = Helpers.BuildProjectWithNewOMExpectSuccess(@"
 <Project>
   <PropertyGroup>
-    <MyProperty>Value is $([System.Int32]::TryParse(""notANumber"", _))</MyProperty>
+    <MyProperty>Value is $([System.Int32]::TryParse(""notANumber"", out _))</MyProperty>
   </PropertyGroup>
   <Target Name='Build'>
     <Message Text='$(MyProperty)' />
@@ -1325,6 +1323,22 @@ namespace Microsoft.Build.UnitTests.Evaluation
 </Project>");
 
             logger.FullLog.ShouldContain("Value is False");
+        }
+
+        [Fact]
+        public void StaticMethodWithUnderscoreNotConfusedWithThrowaway()
+        {
+            MockLogger logger = Helpers.BuildProjectWithNewOMExpectSuccess(@"
+<Project>
+  <PropertyGroup>
+    <MyProperty>Value is $([System.String]::Join('_', 'asdf', 'jkl'))</MyProperty>
+  </PropertyGroup>
+  <Target Name='Build'>
+    <Message Text='$(MyProperty)' />
+  </Target>
+</Project>");
+
+            logger.FullLog.ShouldContain("Value is asdf_jkl");
         }
 
         /// <summary>
@@ -3621,7 +3635,7 @@ namespace Microsoft.Build.UnitTests.Evaluation
                 expander.ExpandIntoStringLeaveEscaped(@"$([MSBuild]::DoesTaskHostExist('ASDF', 'CurrentArchitecture'))", ExpanderOptions.ExpandProperties, MockElementLocation.Instance);
 
                 // We should have failed before now
-                Assert.True(false);
+                Assert.Fail();
             });
         }
 
@@ -4123,7 +4137,10 @@ namespace Microsoft.Build.UnitTests.Evaluation
                 new string[] {"A$(Reg:AA)", "A"},
                 new string[] {"$(Reg:AA)", ""},
                 new string[] {"$(Reg:AAAA)", ""},
-                new string[] {"$(Reg:AAA)", ""}
+                new string[] {"$(Reg:AAA)", ""},
+                // Following two are comparison between non-numeric and numeric properties. More details: #10583
+                new string[] {"$(a.Equals($(c)))","False"},
+                new string[] {"$(a.CompareTo($(c)))","1"},
                                    };
 
             var errorTests = new List<string> {
@@ -4285,7 +4302,7 @@ $(
                 {
                     string message = "FAILURE: " + validTests[i][0] + " expanded to '" + result + "' instead of '" + validTests[i][1] + "'";
                     Console.WriteLine(message);
-                    Assert.True(false, message);
+                    Assert.Fail(message);
                 }
                 else
                 {
@@ -4610,7 +4627,7 @@ $(
         public void PropertyFunctionMSBuildAddIntegerOverflow()
         {
             // Overflow wrapping - result exceeds size of long
-            string expected = IsIntrinsicFunctionOverloadsEnabled ? "-9223372036854775808" : (long.MaxValue + 1.0).ToString();
+            string expected = "-9223372036854775808";
             TestPropertyFunction("$([MSBuild]::Add($(X), 1))", "X", long.MaxValue.ToString(), expected);
         }
 
@@ -4645,7 +4662,7 @@ $(
         public void PropertyFunctionMSBuildSubtractIntegerMaxValue()
         {
             // If the double overload is used, there will be a rounding error.
-            string expected = IsIntrinsicFunctionOverloadsEnabled ? "1" : "0";
+            string expected = "1";
             TestPropertyFunction("$([MSBuild]::Subtract($(X), 9223372036854775806))", "X", long.MaxValue.ToString(), expected);
         }
 
@@ -4665,7 +4682,7 @@ $(
         public void PropertyFunctionMSBuildMultiplyIntegerOverflow()
         {
             // Overflow - result exceeds size of long
-            string expected = IsIntrinsicFunctionOverloadsEnabled ? "-2" : (long.MaxValue * 2.0).ToString();
+            string expected = "-2";
             TestPropertyFunction("$([MSBuild]::Multiply($(X), 2))", "X", long.MaxValue.ToString(), expected);
         }
 
@@ -4678,7 +4695,7 @@ $(
         [Fact]
         public void PropertyFunctionMSBuildDivideIntegerLiteral()
         {
-            string expected = IsIntrinsicFunctionOverloadsEnabled ? "6" : "6.5536";
+            string expected = "6";
             TestPropertyFunction("$([MSBuild]::Divide($(X), 10000))", "X", "65536", expected);
         }
 
@@ -5109,7 +5126,7 @@ $(
         {
             using (var env = TestEnvironment.Create())
             {
-                // Setting this env variable allows to track if expander was using reflection for a function invocation. 
+                // Setting this env variable allows to track if expander was using reflection for a function invocation.
                 env.SetEnvironmentVariable("MSBuildLogPropertyFunctionsRequiringReflection", "1");
 
                 var logger = new MockLogger();

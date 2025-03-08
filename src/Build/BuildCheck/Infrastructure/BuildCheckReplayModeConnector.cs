@@ -1,11 +1,6 @@
 ﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Microsoft.Build.BackEnd;
 using Microsoft.Build.Execution;
 using Microsoft.Build.Experimental.BuildCheck.Infrastructure;
@@ -43,7 +38,7 @@ public static class BuildCheckReplayModeConnector
 
         // Create BuildCheckBuildEventHandler that passes new events to the mergedEventSource
         var buildCheckEventHandler = new BuildCheckBuildEventHandler(
-            new AnalysisDispatchingContextFactory(mergedEventSource),
+            new CheckDispatchingContextFactory(mergedEventSource),
             buildCheckManagerProvider.Instance);
 
         // Pass the events from replayEventSource to the BuildCheckBuildEventHandler to produce new events

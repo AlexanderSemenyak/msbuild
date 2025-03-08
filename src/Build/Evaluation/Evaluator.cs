@@ -12,7 +12,6 @@ using System.Text;
 using Microsoft.Build.BackEnd;
 using Microsoft.Build.BackEnd.Components.Logging;
 using Microsoft.Build.BackEnd.Components.RequestBuilder;
-using Microsoft.Build.BackEnd.Logging;
 using Microsoft.Build.BackEnd.SdkResolution;
 using Microsoft.Build.Collections;
 using Microsoft.Build.Construction;
@@ -159,6 +158,11 @@ namespace Microsoft.Build.Evaluation
         private readonly PropertyDictionary<ProjectPropertyInstance> _environmentProperties;
 
         /// <summary>
+        /// Properties passed from the command line (e.g. by using /p:).
+        /// </summary>
+        private readonly ICollection<string> _propertiesFromCommandLine;
+
+        /// <summary>
         /// The cache to consult for any imports that need loading.
         /// </summary>
         private readonly ProjectRootElementCacheBase _projectRootElementCache;
@@ -201,6 +205,7 @@ namespace Microsoft.Build.Evaluation
             ProjectLoadSettings loadSettings,
             int maxNodeCount,
             PropertyDictionary<ProjectPropertyInstance> environmentProperties,
+            ICollection<string> propertiesFromCommandLine,
             IItemFactory<I, I> itemFactory,
             IToolsetProvider toolsetProvider,
             IDirectoryCacheFactory directoryCacheFactory,
@@ -213,11 +218,11 @@ namespace Microsoft.Build.Evaluation
             ILoggingService loggingService,
             BuildEventContext buildEventContext)
         {
-            ErrorUtilities.VerifyThrowInternalNull(data, nameof(data));
-            ErrorUtilities.VerifyThrowInternalNull(projectRootElementCache, nameof(projectRootElementCache));
-            ErrorUtilities.VerifyThrowInternalNull(evaluationContext, nameof(evaluationContext));
-            ErrorUtilities.VerifyThrowInternalNull(loggingService, nameof(loggingService));
-            ErrorUtilities.VerifyThrowInternalNull(buildEventContext, nameof(buildEventContext));
+            ErrorUtilities.VerifyThrowInternalNull(data);
+            ErrorUtilities.VerifyThrowInternalNull(projectRootElementCache);
+            ErrorUtilities.VerifyThrowInternalNull(evaluationContext);
+            ErrorUtilities.VerifyThrowInternalNull(loggingService);
+            ErrorUtilities.VerifyThrowInternalNull(buildEventContext);
 
             _evaluationLoggingContext = new EvaluationLoggingContext(
                 loggingService,
@@ -253,6 +258,7 @@ namespace Microsoft.Build.Evaluation
             _loadSettings = loadSettings;
             _maxNodeCount = maxNodeCount;
             _environmentProperties = environmentProperties;
+            _propertiesFromCommandLine = propertiesFromCommandLine ?? [];
             _itemFactory = itemFactory;
             _projectRootElementCache = projectRootElementCache;
             _sdkResolverService = sdkResolverService;
@@ -301,6 +307,7 @@ namespace Microsoft.Build.Evaluation
             ProjectLoadSettings loadSettings,
             int maxNodeCount,
             PropertyDictionary<ProjectPropertyInstance> environmentProperties,
+            ICollection<string> propertiesFromCommandLine,
             ILoggingService loggingService,
             IItemFactory<I, I> itemFactory,
             IToolsetProvider toolsetProvider,
@@ -321,6 +328,7 @@ namespace Microsoft.Build.Evaluation
                 loadSettings,
                 maxNodeCount,
                 environmentProperties,
+                propertiesFromCommandLine,
                 itemFactory,
                 toolsetProvider,
                 directoryCacheFactory,
@@ -343,7 +351,7 @@ namespace Microsoft.Build.Evaluation
                 IEnumerable properties = null;
                 IEnumerable items = null;
 
-                if (evaluator._evaluationLoggingContext.LoggingService.IncludeEvaluationPropertiesAndItems)
+                if (evaluator._evaluationLoggingContext.LoggingService.IncludeEvaluationPropertiesAndItemsInEvaluationFinishedEvent)
                 {
                     globalProperties = evaluator._data.GlobalPropertiesDictionary;
                     properties = Traits.LogAllEnvironmentVariables ? evaluator._data.Properties : evaluator.FilterOutEnvironmentDerivedProperties(evaluator._data.Properties);
@@ -362,7 +370,7 @@ namespace Microsoft.Build.Evaluation
         /// </summary>
         internal static List<I> CreateItemsFromInclude(string rootDirectory, ProjectItemElement itemElement, IItemFactory<I, I> itemFactory, string unevaluatedIncludeEscaped, Expander<P, I> expander, ILoggingService loggingService, string buildEventFileInfoFullPath, BuildEventContext buildEventContext)
         {
-            ErrorUtilities.VerifyThrowArgumentLength(unevaluatedIncludeEscaped, nameof(unevaluatedIncludeEscaped));
+            ErrorUtilities.VerifyThrowArgumentLength(unevaluatedIncludeEscaped);
 
             List<I> items = new List<I>();
             itemFactory.ItemElement = itemElement;
@@ -614,11 +622,15 @@ namespace Microsoft.Build.Evaluation
         private void Evaluate()
         {
             string projectFile = String.IsNullOrEmpty(_projectRootElement.ProjectFileLocation.File) ? "(null)" : _projectRootElement.ProjectFileLocation.File;
-            using (AssemblyLoadsTracker.StartTracking(_evaluationLoggingContext, AssemblyLoadingContext.Evaluation))
             using (_evaluationProfiler.TrackPass(EvaluationPass.TotalEvaluation))
             {
                 ErrorUtilities.VerifyThrow(_data.EvaluationId == BuildEventContext.InvalidEvaluationId, "There is no prior evaluation ID. The evaluator data needs to be reset at this point");
                 _data.EvaluationId = _evaluationLoggingContext.BuildEventContext.EvaluationId;
+                _evaluationLoggingContext.LogProjectEvaluationStarted();
+
+                // Track loads only after start of evaluation was actually logged
+                using var assemblyLoadsTracker =
+                    AssemblyLoadsTracker.StartTracking(_evaluationLoggingContext, AssemblyLoadingContext.Evaluation);
 
                 _logProjectImportedEvents = Traits.Instance.EscapeHatches.LogProjectImports;
 
@@ -639,8 +651,6 @@ namespace Microsoft.Build.Evaluation
                         SetBuiltInProperty(ReservedPropertyNames.interactive, "true");
                     }
                 }
-
-                _evaluationLoggingContext.LogProjectEvaluationStarted();
 
                 ErrorUtilities.VerifyThrow(_data.EvaluationId != BuildEventContext.InvalidEvaluationId, "Evaluation should produce an evaluation ID");
 
@@ -1205,7 +1215,7 @@ namespace Microsoft.Build.Evaluation
         {
             foreach (ProjectPropertyInstance toolsetProperty in _data.Toolset.Properties.Values)
             {
-                _data.SetProperty(toolsetProperty.Name, ((IProperty)toolsetProperty).EvaluatedValueEscaped, false /* NOT global property */, false /* may NOT be a reserved name */);
+                _data.SetProperty(toolsetProperty.Name, ((IProperty)toolsetProperty).EvaluatedValueEscaped, false /* NOT global property */, false /* may NOT be a reserved name */, loggingContext: _evaluationLoggingContext);
             }
 
             if (_data.SubToolsetVersion == null)
@@ -1214,7 +1224,7 @@ namespace Microsoft.Build.Evaluation
                 // is most likely not a subtoolset now, we need to add VisualStudioVersion if its not already a property.
                 if (!_data.Properties.Contains(Constants.VisualStudioVersionPropertyName))
                 {
-                    _data.SetProperty(Constants.VisualStudioVersionPropertyName, MSBuildConstants.CurrentVisualStudioVersion, false /* NOT global property */, false /* may NOT be a reserved name */);
+                    _data.SetProperty(Constants.VisualStudioVersionPropertyName, MSBuildConstants.CurrentVisualStudioVersion, false /* NOT global property */, false /* may NOT be a reserved name */, loggingContext: _evaluationLoggingContext);
                 }
             }
             else
@@ -1224,21 +1234,21 @@ namespace Microsoft.Build.Evaluation
                 // set the property even if there is no matching sub-toolset.
                 if (!_data.Properties.Contains(Constants.SubToolsetVersionPropertyName))
                 {
-                    _data.SetProperty(Constants.SubToolsetVersionPropertyName, _data.SubToolsetVersion, false /* NOT global property */, false /* may NOT be a reserved name */);
+                    _data.SetProperty(Constants.SubToolsetVersionPropertyName, _data.SubToolsetVersion, false /* NOT global property */, false /* may NOT be a reserved name */, loggingContext: _evaluationLoggingContext);
                 }
 
                 if (_data.Toolset.SubToolsets.TryGetValue(_data.SubToolsetVersion, out SubToolset subToolset))
                 {
                     foreach (ProjectPropertyInstance subToolsetProperty in subToolset.Properties.Values)
                     {
-                        _data.SetProperty(subToolsetProperty.Name, ((IProperty)subToolsetProperty).EvaluatedValueEscaped, false /* NOT global property */, false /* may NOT be a reserved name */);
+                        _data.SetProperty(subToolsetProperty.Name, ((IProperty)subToolsetProperty).EvaluatedValueEscaped, false /* NOT global property */, false /* may NOT be a reserved name */, loggingContext: _evaluationLoggingContext);
                     }
                 }
             }
         }
 
         /// <summary>
-        /// Put all the global properties into our property bag
+        /// Put all the global properties into our property bag.
         /// </summary>
         private int AddGlobalProperties()
         {
@@ -1249,7 +1259,13 @@ namespace Microsoft.Build.Evaluation
 
             foreach (ProjectPropertyInstance globalProperty in _data.GlobalPropertiesDictionary)
             {
-                _data.SetProperty(globalProperty.Name, ((IProperty)globalProperty).EvaluatedValueEscaped, true /* IS global property */, false /* may NOT be a reserved name */);
+                _ = _data.SetProperty(
+                    globalProperty.Name,
+                    ((IProperty)globalProperty).EvaluatedValueEscaped,
+                    isGlobalProperty: true /* it is a global property, but it comes from command line and is tracked separately */,
+                    mayBeReserved: false /* may NOT be a reserved name */,
+                    loggingContext: _evaluationLoggingContext,
+                    isCommandLineProperty: _propertiesFromCommandLine.Contains(globalProperty.Name) /* IS coming from command line argument */);
             }
 
             return _data.GlobalPropertiesDictionary.Count;
@@ -1263,7 +1279,7 @@ namespace Microsoft.Build.Evaluation
         /// </summary>
         private P SetBuiltInProperty(string name, string evaluatedValueEscaped)
         {
-            P property = _data.SetProperty(name, evaluatedValueEscaped, false /* NOT global property */, true /* OK to be a reserved name */);
+            P property = _data.SetProperty(name, evaluatedValueEscaped, false /* NOT global property */, true /* OK to be a reserved name */, loggingContext: _evaluationLoggingContext);
             return property;
         }
 
@@ -1301,7 +1317,7 @@ namespace Microsoft.Build.Evaluation
 
                 _expander.PropertiesUseTracker.CheckPreexistingUndefinedUsage(propertyElement, evaluatedValue, _evaluationLoggingContext);
 
-                _data.SetProperty(propertyElement, evaluatedValue);
+                _data.SetProperty(propertyElement, evaluatedValue, _evaluationLoggingContext);
             }
         }
 
@@ -1594,7 +1610,7 @@ namespace Microsoft.Build.Evaluation
                 if (!_fallbackSearchPathsCache.DirectoryExists(extensionPathExpanded))
                 {
                     // Set to log an error only if the change wave is enabled.
-                    missingDirectoryDespiteTrueCondition = ChangeWaves.AreFeaturesEnabled(ChangeWaves.Wave17_6) && !containsWildcards;
+                    missingDirectoryDespiteTrueCondition = !containsWildcards;
                     continue;
                 }
 
@@ -1915,7 +1931,7 @@ namespace Microsoft.Build.Evaluation
 
             ProjectRootElement InnerCreate(string _, ProjectRootElementCacheBase __)
             {
-                ProjectRootElement project = ProjectRootElement.Create();
+                ProjectRootElement project = ProjectRootElement.CreateEphemeral(_projectRootElementCache);
                 project.FullPath = projectPath;
 
                 if (sdkResult.PropertiesToAdd?.Any() == true)
@@ -2237,7 +2253,7 @@ namespace Microsoft.Build.Evaluation
                             VerifyVSDistributionPath(importElement.Project, importLocationInProject);
 
                             ProjectErrorUtilities.ThrowInvalidProject(importLocationInProject, "ImportedProjectNotFound",
-                                                                      importFileUnescaped, importExpressionEscaped);
+                                                                      importFileUnescaped, unescapedExpression, importExpressionEscaped);
                         }
                         else
                         {
@@ -2568,7 +2584,8 @@ namespace Microsoft.Build.Evaluation
                         ? $"{_lastModifiedProject.FullPath}{streamImports}"
                         : $"{_lastModifiedProject.FullPath}{streamImports};{oldValue.EvaluatedValue}",
                     isGlobalProperty: false,
-                    mayBeReserved: false);
+                    mayBeReserved: false,
+                    loggingContext: _evaluationLoggingContext);
             }
         }
 
@@ -2576,7 +2593,8 @@ namespace Microsoft.Build.Evaluation
         private void VerifyVSDistributionPath(string path, ElementLocation importLocationInProject)
         {
             if (path.IndexOf("Microsoft\\VisualStudio", StringComparison.OrdinalIgnoreCase) >= 0
-                || path.IndexOf("Microsoft/VisualStudio", StringComparison.OrdinalIgnoreCase) >= 0)
+                || path.IndexOf("Microsoft/VisualStudio", StringComparison.OrdinalIgnoreCase) >= 0
+                || path.IndexOf("$(VCTargetsPath)", StringComparison.OrdinalIgnoreCase) >= 0)
             {
                 ProjectErrorUtilities.ThrowInvalidProject(importLocationInProject, "ImportedProjectFromVSDistribution", path);
             }

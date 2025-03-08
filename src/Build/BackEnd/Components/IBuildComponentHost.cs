@@ -144,9 +144,14 @@ namespace Microsoft.Build.BackEnd
         NodeLauncher,
 
         /// <summary>
-        /// The Build Analyzer Manager.
+        /// The Build Check Manager.
         /// </summary>
         BuildCheckManagerProvider,
+
+        /// <summary>
+        /// The component which collects telemetry data in worker node and forwards it to the main node.
+        /// </summary>
+        TelemetryForwarder,
     }
 
     /// <summary>

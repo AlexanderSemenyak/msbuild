@@ -75,13 +75,24 @@ namespace Microsoft.Build.Logging
         //   - TaskParameterEventArgs: Added ParameterName and PropertyName properties
         // version 22:
         //    - extend EnvironmentVariableRead with location where environment variable was used.
+        // version 23:
+        //    - new record kinds: BuildCheckMessageEvent, BuildCheckWarningEvent, BuildCheckErrorEvent,
+        //    BuildCheckTracingEvent, BuildCheckAcquisitionEvent, BuildSubmissionStartedEvent
+        // version 24:
+        //    - new record kind: BuildCanceledEventArgs
+        // version 25:
+        //    - add extra information to PropertyInitialValueSetEventArgs and PropertyReassignmentEventArgs and change message formatting logic.
+
+        // MAKE SURE YOU KEEP BuildEventArgsWriter AND StructuredLogViewer.BuildEventArgsWriter IN SYNC WITH THE CHANGES ABOVE.
+        // Both components must stay in sync to avoid issues with logging or event handling in the products.
+
         // This should be never changed.
         // The minimum version of the binary log reader that can read log of above version.
         internal const int ForwardCompatibilityMinimalVersion = 18;
 
         // The current version of the binary log representation.
         // Changes with each update of the binary log format.
-        internal const int FileFormatVersion = 22;
+        internal const int FileFormatVersion = 25;
 
         // The minimum version of the binary log reader that can read log of above version.
         // This should be changed only when the binary log format is changed in a way that would prevent it from being
@@ -304,7 +315,7 @@ namespace Microsoft.Build.Logging
         public void Shutdown()
         {
             Environment.SetEnvironmentVariable("MSBUILDTARGETOUTPUTLOGGING", _initialTargetOutputLogging);
-            Environment.SetEnvironmentVariable("MSBUILDLOGIMPORTS", _initialLogImports ? "1" : "");
+            Environment.SetEnvironmentVariable("MSBUILDLOGIMPORTS", _initialLogImports ? "1" : null);
             Environment.SetEnvironmentVariable("MSBUILDBINARYLOGGERENABLED", _initialIsBinaryLoggerEnabled);
 
             Traits.Instance.EscapeHatches.LogProjectImports = _initialLogImports;
@@ -493,13 +504,6 @@ namespace Microsoft.Build.Logging
             => (PathParameterExpander ?? ExpandPathParameter)(string.Empty);
 
         private static string ExpandPathParameter(string parameters)
-            => $"{DateTime.UtcNow.ToString("yyyyMMdd-HHmmss")}--{ProcessId}--{StringUtils.GenerateRandomString(6)}";
-
-        private static int ProcessId
-#if NET
-            => Environment.ProcessId;
-#else
-            => System.Diagnostics.Process.GetCurrentProcess().Id;
-#endif
+            => $"{DateTime.UtcNow.ToString("yyyyMMdd-HHmmss")}--{EnvironmentUtilities.CurrentProcessId}--{StringUtils.GenerateRandomString(6)}";
     }
 }

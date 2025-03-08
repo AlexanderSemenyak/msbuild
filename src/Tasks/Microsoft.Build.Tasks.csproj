@@ -37,9 +37,6 @@
   </ItemGroup>
   <ItemGroup>
     <!-- Source Files -->
-    <Compile Include="..\Shared\EnvironmentUtilities.cs">
-      <Link>EnvironmentUtilities.cs</Link>
-    </Compile>
     <Compile Include="..\Shared\AssemblyFolders\AssemblyFoldersEx.cs">
       <Link>AssemblyDependency\AssemblyFoldersEx.cs</Link>
     </Compile>
@@ -110,6 +107,9 @@
     </Compile>
     <Compile Include="..\Shared\FileUtilities.cs">
       <Link>FileUtilities.cs</Link>
+    </Compile>
+    <Compile Include="..\Shared\StringUtils.cs">
+      <Link>StringUtils.cs</Link>
     </Compile>
     <Compile Include="..\Shared\EscapingUtilities.cs">
       <Link>EscapingUtilities.cs</Link>
@@ -432,12 +432,6 @@
     <Content Include="Microsoft.Common.props">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <!-- For .NET Core, Microsoft.Common.props needs to be in version subfolder for bootstrap build, but in MSBuild exe
-         path for some tests.  So include it twice. -->
-    <Content Include="Microsoft.Common.props" Condition="'$(TargetFrameworkIdentifier)' != '.NETFramework'">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <Link>Current\Microsoft.Common.props</Link>
-    </Content>
     <Content Include="Microsoft.Common.tasks">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
@@ -690,7 +684,7 @@
     <PackageReference Include="System.Threading.Tasks.Dataflow" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(TargetFrameworkIdentifier)' == '.NETFramework' and '$(DotNetBuildFromSource)' != 'true'">
+  <ItemGroup Condition="'$(TargetFrameworkIdentifier)' == '.NETFramework' and '$(DotNetBuildSourceOnly)' != 'true'">
     <PackageReference Include="Microsoft.VisualStudio.Setup.Configuration.Interop" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFrameworkIdentifier)' == '.NETFramework'">

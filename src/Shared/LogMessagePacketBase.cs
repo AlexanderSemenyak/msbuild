@@ -36,209 +36,224 @@ namespace Microsoft.Build.Shared
     internal enum LoggingEventType : int
     {
         /// <summary>
-        /// An invalid eventId, used during initialization of a LoggingEventType
+        /// An invalid eventId, used during initialization of a <see cref="LoggingEventType"/>.
         /// </summary>
         Invalid = -1,
 
         /// <summary>
-        /// Event is a CustomEventArgs
+        /// Event is a CustomEventArgs.
         /// </summary>
         CustomEvent = 0,
 
         /// <summary>
-        /// Event is a BuildErrorEventArgs
+        /// Event is a <see cref="BuildErrorEventArgs"/>.
         /// </summary>
         BuildErrorEvent = 1,
 
         /// <summary>
-        /// Event is a BuildFinishedEventArgs
+        /// Event is a <see cref="BuildFinishedEventArgs"/>.
         /// </summary>
         BuildFinishedEvent = 2,
 
         /// <summary>
-        /// Event is a BuildMessageEventArgs
+        /// Event is a <see cref="BuildMessageEventArgs"/>.
         /// </summary>
         BuildMessageEvent = 3,
 
         /// <summary>
-        /// Event is a BuildStartedEventArgs
+        /// Event is a <see cref="BuildStartedEventArgs"/>.
         /// </summary>
         BuildStartedEvent = 4,
 
         /// <summary>
-        /// Event is a BuildWarningEventArgs
+        /// Event is a <see cref="BuildWarningEventArgs"/>.
         /// </summary>
         BuildWarningEvent = 5,
 
         /// <summary>
-        /// Event is a ProjectFinishedEventArgs
+        /// Event is a <see cref="ProjectFinishedEventArgs"/>.
         /// </summary>
         ProjectFinishedEvent = 6,
 
         /// <summary>
-        /// Event is a ProjectStartedEventArgs
+        /// Event is a <see cref="ProjectStartedEventArgs"/>.
         /// </summary>
         ProjectStartedEvent = 7,
 
         /// <summary>
-        /// Event is a TargetStartedEventArgs
+        /// Event is a <see cref="TargetStartedEventArgs"/>.
         /// </summary>
         TargetStartedEvent = 8,
 
         /// <summary>
-        /// Event is a TargetFinishedEventArgs
+        /// Event is a <see cref="TargetFinishedEventArgs"/>.
         /// </summary>
         TargetFinishedEvent = 9,
 
         /// <summary>
-        /// Event is a TaskStartedEventArgs
+        /// Event is a <see cref="TaskStartedEventArgs"/>.
         /// </summary>
         TaskStartedEvent = 10,
 
         /// <summary>
-        /// Event is a TaskFinishedEventArgs
+        /// Event is a <see cref="TaskFinishedEventArgs"/>.
         /// </summary>
         TaskFinishedEvent = 11,
 
         /// <summary>
-        /// Event is a TaskCommandLineEventArgs
+        /// Event is a <see cref="TaskCommandLineEventArgs"/>.
         /// </summary>
         TaskCommandLineEvent = 12,
 
         /// <summary>
-        /// Event is a TaskParameterEventArgs
+        /// Event is a <see cref="TaskParameterEventArgs"/>.
         /// </summary>
         TaskParameterEvent = 13,
 
         /// <summary>
-        /// Event is a ProjectEvaluationStartedEventArgs
+        /// Event is a <see cref="ProjectEvaluationStartedEventArgs"/>.
         /// </summary>
         ProjectEvaluationStartedEvent = 14,
 
         /// <summary>
-        /// Event is a ProjectEvaluationFinishedEventArgs
+        /// Event is a <see cref="ProjectEvaluationFinishedEventArgs"/>.
         /// </summary>
         ProjectEvaluationFinishedEvent = 15,
 
         /// <summary>
-        /// Event is a ProjectImportedEventArgs
+        /// Event is a <see cref="ProjectImportedEventArgs"/>.
         /// </summary>
         ProjectImportedEvent = 16,
 
         /// <summary>
-        /// Event is a TargetSkippedEventArgs
+        /// Event is a <see cref="TargetSkippedEventArgs"/>.
         /// </summary>
         TargetSkipped = 17,
 
         /// <summary>
-        /// Event is a TelemetryEventArgs
+        /// Event is a <see cref="TelemetryEventArgs"/>.
         /// </summary>
         Telemetry = 18,
 
         /// <summary>
-        /// Event is an EnvironmentVariableReadEventArgs
+        /// Event is an <see cref="EnvironmentVariableReadEventArgs"/>.
         /// </summary>
         EnvironmentVariableReadEvent = 19,
 
         /// <summary>
-        /// Event is a ResponseFileUsedEventArgs
+        /// Event is a <see cref="ResponseFileUsedEventArgs"/>.
         /// </summary>
         ResponseFileUsedEvent = 20,
 
         /// <summary>
-        /// Event is an AssemblyLoadBuildEventArgs
+        /// Event is an <see cref="AssemblyLoadBuildEventArgs"/>.
         /// </summary>
         AssemblyLoadEvent = 21,
 
         /// <summary>
-        /// Event is <see cref="ExternalProjectStartedEventArgs"/>
+        /// Event is <see cref="ExternalProjectStartedEventArgs"/>.
         /// </summary>
         ExternalProjectStartedEvent = 22,
 
         /// <summary>
-        /// Event is <see cref="ExternalProjectFinishedEventArgs"/>
+        /// Event is <see cref="ExternalProjectFinishedEventArgs"/>.
         /// </summary>
         ExternalProjectFinishedEvent = 23,
 
         /// <summary>
-        /// Event is <see cref="ExtendedCustomBuildEventArgs"/>
+        /// Event is <see cref="ExtendedCustomBuildEventArgs"/>.
         /// </summary>
         ExtendedCustomEvent = 24,
 
         /// <summary>
-        /// Event is <see cref="ExtendedBuildErrorEventArgs"/>
+        /// Event is <see cref="ExtendedBuildErrorEventArgs"/>.
         /// </summary>
         ExtendedBuildErrorEvent = 25,
 
         /// <summary>
-        /// Event is <see cref="ExtendedBuildWarningEventArgs"/>
+        /// Event is <see cref="ExtendedBuildWarningEventArgs"/>.
         /// </summary>
         ExtendedBuildWarningEvent = 26,
 
         /// <summary>
-        /// Event is <see cref="ExtendedBuildMessageEventArgs"/>
+        /// Event is <see cref="ExtendedBuildMessageEventArgs"/>.
         /// </summary>
         ExtendedBuildMessageEvent = 27,
 
         /// <summary>
-        /// Event is <see cref="CriticalBuildMessageEventArgs"/>
+        /// Event is <see cref="CriticalBuildMessageEventArgs"/>.
         /// </summary>
         CriticalBuildMessage = 28,
 
         /// <summary>
-        /// Event is <see cref="MetaprojectGeneratedEventArgs"/>
+        /// Event is <see cref="MetaprojectGeneratedEventArgs"/>.
         /// </summary>
         MetaprojectGenerated = 29,
 
         /// <summary>
-        /// Event is <see cref="PropertyInitialValueSetEventArgs"/>
+        /// Event is <see cref="PropertyInitialValueSetEventArgs"/>.
         /// </summary>
         PropertyInitialValueSet = 30,
 
         /// <summary>
-        /// Event is <see cref="PropertyReassignmentEventArgs"/>
+        /// Event is <see cref="PropertyReassignmentEventArgs"/>.
         /// </summary>
         PropertyReassignment = 31,
 
         /// <summary>
-        /// Event is <see cref="UninitializedPropertyReadEventArgs"/>
+        /// Event is <see cref="UninitializedPropertyReadEventArgs"/>.
         /// </summary>
         UninitializedPropertyRead = 32,
 
         /// <summary>
-        /// Event is <see cref="ExtendedCriticalBuildMessageEventArgs"/>
+        /// Event is <see cref="ExtendedCriticalBuildMessageEventArgs"/>.
         /// </summary>
         ExtendedCriticalBuildMessageEvent = 33,
 
         /// <summary>
-        /// Event is a <see cref="GeneratedFileUsedEventArgs"/>
+        /// Event is a <see cref="GeneratedFileUsedEventArgs"/>.
         /// </summary>
         GeneratedFileUsedEvent = 34,
 
         /// <summary>
-        /// Event is <see cref="BuildCheckResultMessage"/>
+        /// Event is <see cref="BuildCheckResultMessage"/>.
         /// </summary>
         BuildCheckMessageEvent = 35,
 
         /// <summary>
-        /// Event is <see cref="BuildCheckResultWarning"/>
+        /// Event is <see cref="BuildCheckResultWarning"/>.
         /// </summary>
         BuildCheckWarningEvent = 36,
 
         /// <summary>
-        /// Event is <see cref="BuildCheckResultError"/>
+        /// Event is <see cref="BuildCheckResultError"/>.
         /// </summary>
         BuildCheckErrorEvent = 37,
 
         /// <summary>
-        /// Event is <see cref="BuildCheckTracingEventArgs"/>
+        /// Event is <see cref="BuildCheckTracingEventArgs"/>.
         /// </summary>
         BuildCheckTracingEvent = 38,
 
         /// <summary>
-        /// Event is <see cref="BuildCheckAcquisitionEventArgs"/>
+        /// Event is <see cref="BuildCheckAcquisitionEventArgs"/>.
         /// </summary>
         BuildCheckAcquisitionEvent = 39,
+
+        /// <summary>
+        /// Event is <see cref="BuildSubmissionStartedEventArgs"/>.
+        /// </summary>
+        BuildSubmissionStartedEvent = 40,
+
+        /// <summary>
+        /// Event is <see cref="BuildCanceledEventArgs"/>
+        /// </summary>
+        BuildCanceledEvent = 41,
+
+        /// <summary>
+        /// Event is <see cref="WorkerNodeTelemetryEventArgs"/>
+        /// </summary>
+        WorkerNodeTelemetryEvent = 42,
     }
     #endregion
 
@@ -264,23 +279,6 @@ namespace Microsoft.Build.Shared
         /// Dictionary of methods used to write BuildEventArgs.
         /// </summary>
         private static Dictionary<LoggingEventType, MethodInfo> s_writeMethodCache = new Dictionary<LoggingEventType, MethodInfo>();
-
-        /// <summary>
-        /// Dictionary of assemblies we've added to the resolver.
-        /// </summary>
-        private static HashSet<string> s_customEventsLoaded = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-#if FEATURE_APPDOMAIN
-        /// <summary>
-        /// The resolver used to load custom event types.
-        /// </summary>
-        private static TaskEngineAssemblyResolver s_resolver;
-#endif
-
-        /// <summary>
-        /// The object used to synchronize access to shared data.
-        /// </summary>
-        private static object s_lockObject = new Object();
 
         /// <summary>
         /// Delegate for translating targetfinished events.
@@ -411,25 +409,25 @@ namespace Microsoft.Build.Shared
         /// </summary>
         internal void WriteToStream(ITranslator translator)
         {
-            if (_eventType != LoggingEventType.CustomEvent)
+            ErrorUtilities.VerifyThrow(_eventType != LoggingEventType.CustomEvent, "_eventType should not be a custom event");
+
+            MethodInfo methodInfo = null;
+            lock (s_writeMethodCache)
             {
-                MethodInfo methodInfo = null;
-                lock (s_writeMethodCache)
+                if (!s_writeMethodCache.TryGetValue(_eventType, out methodInfo))
                 {
-                    if (!s_writeMethodCache.TryGetValue(_eventType, out methodInfo))
-                    {
-                        Type eventDerivedType = _buildEvent.GetType();
-                        methodInfo = eventDerivedType.GetMethod("WriteToStream", BindingFlags.NonPublic | BindingFlags.Instance);
-                        s_writeMethodCache.Add(_eventType, methodInfo);
-                    }
+                    Type eventDerivedType = _buildEvent.GetType();
+                    methodInfo = eventDerivedType.GetMethod("WriteToStream", BindingFlags.NonPublic | BindingFlags.Instance);
+                    s_writeMethodCache.Add(_eventType, methodInfo);
                 }
+            }
 
-                int packetVersion = s_defaultPacketVersion;
+            int packetVersion = s_defaultPacketVersion;
 
-                // Make sure the other side knows what sort of serialization is coming
-                translator.Translate(ref packetVersion);
+            // Make sure the other side knows what sort of serialization is coming
+            translator.Translate(ref packetVersion);
 
-                bool eventCanSerializeItself = methodInfo != null;
+            bool eventCanSerializeItself = methodInfo != null;
 
 #if !TASKHOST && !MSBUILDENTRYPOINTEXE
                 if (_buildEvent is ProjectEvaluationStartedEventArgs
@@ -442,34 +440,22 @@ namespace Microsoft.Build.Shared
                 }
 #endif
 
-                translator.Translate(ref eventCanSerializeItself);
+            translator.Translate(ref eventCanSerializeItself);
 
-                if (eventCanSerializeItself)
-                {
-                    // 3.5 or later -- we have custom serialization methods, so let's use them.
-                    ArgsWriterDelegate writerMethod = (ArgsWriterDelegate)CreateDelegateRobust(typeof(ArgsWriterDelegate), _buildEvent, methodInfo);
-                    writerMethod(translator.Writer);
+            if (eventCanSerializeItself)
+            {
+                // 3.5 or later -- we have custom serialization methods, so let's use them.
+                ArgsWriterDelegate writerMethod = (ArgsWriterDelegate)CreateDelegateRobust(typeof(ArgsWriterDelegate), _buildEvent, methodInfo);
+                writerMethod(translator.Writer);
 
-                    if (_eventType == LoggingEventType.TargetFinishedEvent && _targetFinishedTranslator != null)
-                    {
-                        _targetFinishedTranslator(translator, (TargetFinishedEventArgs)_buildEvent);
-                    }
-                }
-                else
+                if (_eventType == LoggingEventType.TargetFinishedEvent && _targetFinishedTranslator != null)
                 {
-                    WriteEventToStream(_buildEvent, _eventType, translator);
+                    _targetFinishedTranslator(translator, (TargetFinishedEventArgs)_buildEvent);
                 }
             }
             else
             {
-#if FEATURE_ASSEMBLY_LOCATION
-                string assemblyLocation = _buildEvent.GetType().GetTypeInfo().Assembly.Location;
-                translator.Translate(ref assemblyLocation);
-#else
-                string assemblyName = _buildEvent.GetType().GetTypeInfo().Assembly.FullName;
-                translator.Translate(ref assemblyName);
-#endif
-                translator.TranslateDotNet(ref _buildEvent);
+                WriteEventToStream(_buildEvent, _eventType, translator);
             }
         }
 
@@ -478,88 +464,43 @@ namespace Microsoft.Build.Shared
         /// </summary>
         internal void ReadFromStream(ITranslator translator)
         {
-            if (LoggingEventType.CustomEvent != _eventType)
+            ErrorUtilities.VerifyThrow(_eventType != LoggingEventType.CustomEvent, "_eventType should not be a custom event");
+
+            _buildEvent = GetBuildEventArgFromId();
+
+            // The other side is telling us whether the event knows how to log itself, or whether we're going to have
+            // to do it manually
+            int packetVersion = s_defaultPacketVersion;
+            translator.Translate(ref packetVersion);
+
+            bool eventCanSerializeItself = true;
+            translator.Translate(ref eventCanSerializeItself);
+
+            if (eventCanSerializeItself)
             {
-                _buildEvent = GetBuildEventArgFromId();
-
-                // The other side is telling us whether the event knows how to log itself, or whether we're going to have
-                // to do it manually
-                int packetVersion = s_defaultPacketVersion;
-                translator.Translate(ref packetVersion);
-
-                bool eventCanSerializeItself = true;
-                translator.Translate(ref eventCanSerializeItself);
-
-                if (eventCanSerializeItself)
+                MethodInfo methodInfo = null;
+                lock (s_readMethodCache)
                 {
-                    MethodInfo methodInfo = null;
-                    lock (s_readMethodCache)
+                    if (!s_readMethodCache.TryGetValue(_eventType, out methodInfo))
                     {
-                        if (!s_readMethodCache.TryGetValue(_eventType, out methodInfo))
-                        {
-                            Type eventDerivedType = _buildEvent.GetType();
-                            methodInfo = eventDerivedType.GetMethod("CreateFromStream", BindingFlags.NonPublic | BindingFlags.Instance);
-                            s_readMethodCache.Add(_eventType, methodInfo);
-                        }
-                    }
-
-                    ArgsReaderDelegate readerMethod = (ArgsReaderDelegate)CreateDelegateRobust(typeof(ArgsReaderDelegate), _buildEvent, methodInfo);
-
-                    readerMethod(translator.Reader, packetVersion);
-                    if (_eventType == LoggingEventType.TargetFinishedEvent && _targetFinishedTranslator != null)
-                    {
-                        _targetFinishedTranslator(translator, (TargetFinishedEventArgs)_buildEvent);
+                        Type eventDerivedType = _buildEvent.GetType();
+                        methodInfo = eventDerivedType.GetMethod("CreateFromStream", BindingFlags.NonPublic | BindingFlags.Instance);
+                        s_readMethodCache.Add(_eventType, methodInfo);
                     }
                 }
-                else
+
+                ArgsReaderDelegate readerMethod = (ArgsReaderDelegate)CreateDelegateRobust(typeof(ArgsReaderDelegate), _buildEvent, methodInfo);
+
+                readerMethod(translator.Reader, packetVersion);
+                if (_eventType == LoggingEventType.TargetFinishedEvent && _targetFinishedTranslator != null)
                 {
-                    _buildEvent = ReadEventFromStream(_eventType, translator);
-                    ErrorUtilities.VerifyThrow(_buildEvent is not null, "Not Supported LoggingEventType {0}", _eventType.ToString());
+                    _targetFinishedTranslator(translator, (TargetFinishedEventArgs)_buildEvent);
                 }
             }
             else
             {
-                string fileLocation = null;
-                translator.Translate(ref fileLocation);
-
-                bool resolveAssembly = false;
-                lock (s_lockObject)
-                {
-                    if (!s_customEventsLoaded.Contains(fileLocation))
-                    {
-                        resolveAssembly = true;
-                    }
-
-                    // If we are to resolve the assembly add it to the list of assemblies resolved
-                    if (resolveAssembly)
-                    {
-                        s_customEventsLoaded.Add(fileLocation);
-                    }
-                }
-
-#if FEATURE_APPDOMAIN
-                if (resolveAssembly)
-                {
-                    s_resolver = new TaskEngineAssemblyResolver();
-                    s_resolver.InstallHandler();
-                    s_resolver.Initialize(fileLocation);
-                }
-#endif
-
-                try
-                {
-                    translator.TranslateDotNet(ref _buildEvent);
-                }
-                finally
-                {
-#if FEATURE_APPDOMAIN
-                    if (resolveAssembly)
-                    {
-                        s_resolver.RemoveHandler();
-                        s_resolver = null;
-                    }
-#endif
-                }
+                _buildEvent = ReadEventFromStream(_eventType, translator);
+                ErrorUtilities.VerifyThrow(_buildEvent is not null, "Not Supported LoggingEventType {0}", _eventType.ToString());
             }
 
             _eventType = GetLoggingEventId(_buildEvent);
@@ -650,6 +591,9 @@ namespace Microsoft.Build.Shared
                 LoggingEventType.BuildCheckAcquisitionEvent => new BuildCheckAcquisitionEventArgs(),
                 LoggingEventType.BuildCheckTracingEvent => new BuildCheckTracingEventArgs(),
                 LoggingEventType.EnvironmentVariableReadEvent => new EnvironmentVariableReadEventArgs(),
+                LoggingEventType.BuildSubmissionStartedEvent => new BuildSubmissionStartedEventArgs(),
+                LoggingEventType.BuildCanceledEvent => new BuildCanceledEventArgs("Build canceled."),
+                LoggingEventType.WorkerNodeTelemetryEvent => new WorkerNodeTelemetryEventArgs(),
 #endif
                 _ => throw new InternalErrorException("Should not get to the default of GetBuildEventArgFromId ID: " + _eventType)
             };
@@ -788,6 +732,18 @@ namespace Microsoft.Build.Shared
             else if (eventType == typeof(EnvironmentVariableReadEventArgs))
             {
                 return LoggingEventType.EnvironmentVariableReadEvent;
+            }
+            else if (eventType == typeof(BuildSubmissionStartedEventArgs))
+            {
+                return LoggingEventType.BuildSubmissionStartedEvent;
+            }
+            else if (eventType == typeof(BuildCanceledEventArgs))
+            {
+                return LoggingEventType.BuildCanceledEvent;
+            }
+            else if (eventType == typeof(WorkerNodeTelemetryEventArgs))
+            {
+                return LoggingEventType.WorkerNodeTelemetryEvent;
             }
 #endif
             else if (eventType == typeof(TargetStartedEventArgs))
@@ -1346,7 +1302,6 @@ namespace Microsoft.Build.Shared
             buildEvent.RawTimestamp = timestamp;
 #endif
 
-
             return buildEvent;
         }
 
@@ -1405,7 +1360,7 @@ namespace Microsoft.Build.Shared
             int count = BinaryReaderExtensions.Read7BitEncodedInt(reader);
             if (count == 0)
             {
-                return Enumerable.Empty<DictionaryEntry>();
+                return (DictionaryEntry[])[];
             }
 
             var list = new ArrayList(count);
@@ -1427,7 +1382,7 @@ namespace Microsoft.Build.Shared
             int count = BinaryReaderExtensions.Read7BitEncodedInt(reader);
             if (count == 0)
             {
-                return Enumerable.Empty<DictionaryEntry>();
+                return (DictionaryEntry[])[];
             }
 
             var list = new ArrayList(count);

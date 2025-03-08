@@ -5,6 +5,8 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using Microsoft.Build.BackEnd.Shared;
+using Microsoft.Build.Experimental.BuildCheck;
+using Microsoft.Build.Experimental.BuildCheck.Infrastructure;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Framework.Profiler;
 using Microsoft.Build.Shared;
@@ -392,7 +394,7 @@ namespace Microsoft.Build.BackEnd.Logging
         /// <inheritdoc />
         public void LogBuildCanceled()
         {
-            string message = ResourceUtilities.GetResourceString("AbortingBuild"); 
+            string message = ResourceUtilities.GetResourceString("AbortingBuild");
             BuildCanceledEventArgs buildEvent = new BuildCanceledEventArgs(message);
 
             ProcessLoggingEvent(buildEvent);
@@ -496,6 +498,39 @@ namespace Microsoft.Build.BackEnd.Logging
             int evaluationId = BuildEventContext.InvalidEvaluationId,
             int projectContextId = BuildEventContext.InvalidProjectContextId)
         {
+            var args = CreateProjectStarted(nodeBuildEventContext,
+                submissionId,
+                configurationId,
+                parentBuildEventContext,
+                projectFile,
+                targetNames,
+                properties,
+                items,
+                evaluationId,
+                projectContextId);
+
+            this.LogProjectStarted(args);
+
+            return args.BuildEventContext;
+        }
+
+        public void LogProjectStarted(ProjectStartedEventArgs buildEvent)
+        {
+            ProcessLoggingEvent(buildEvent);
+        }
+
+        public ProjectStartedEventArgs CreateProjectStarted(
+            BuildEventContext nodeBuildEventContext,
+            int submissionId,
+            int configurationId,
+            BuildEventContext parentBuildEventContext,
+            string projectFile,
+            string targetNames,
+            IEnumerable<DictionaryEntry> properties,
+            IEnumerable<DictionaryEntry> items,
+            int evaluationId = BuildEventContext.InvalidEvaluationId,
+            int projectContextId = BuildEventContext.InvalidProjectContextId)
+        {
             ErrorUtilities.VerifyThrow(nodeBuildEventContext != null, "Need a nodeBuildEventContext");
 
             if (projectContextId == BuildEventContext.InvalidProjectContextId)
@@ -558,9 +593,7 @@ namespace Microsoft.Build.BackEnd.Logging
                     buildRequestConfiguration.ToolsVersion);
             buildEvent.BuildEventContext = projectBuildEventContext;
 
-            ProcessLoggingEvent(buildEvent);
-
-            return projectBuildEventContext;
+            return buildEvent;
         }
 
         /// <summary>
@@ -582,10 +615,15 @@ namespace Microsoft.Build.BackEnd.Logging
             buildEvent.BuildEventContext = projectBuildEventContext;
             ProcessLoggingEvent(buildEvent);
 
-            // PERF: Not using VerifyThrow to avoid boxing of projectBuildEventContext.ProjectContextId in the non-error case.
-            if (!_projectFileMap.TryRemove(projectBuildEventContext.ProjectContextId, out _))
+            // BuildCheck can still emit some LogBuildEvent(s) after ProjectFinishedEventArgs was reported.
+            // Due to GetAndVerifyProjectFileFromContext validation, these checks break the build.
+            if (!_buildCheckEnabled)
             {
-                ErrorUtilities.ThrowInternalError("ContextID {0} for project {1} should be in the ID-to-file mapping!", projectBuildEventContext.ProjectContextId, projectFile);
+                // PERF: Not using VerifyThrow to avoid boxing of projectBuildEventContext.ProjectContextId in the non-error case.
+                if (!_projectFileMap.TryRemove(projectBuildEventContext.ProjectContextId, out _))
+                {
+                    ErrorUtilities.ThrowInternalError("ContextID {0} for project {1} should be in the ID-to-file mapping!", projectBuildEventContext.ProjectContextId, projectFile);
+                }
             }
         }
 
@@ -795,5 +833,18 @@ namespace Microsoft.Build.BackEnd.Logging
         }
 
         #endregion
+
+#nullable enable
+        private IBuildEngineDataRouter? _buildEngineDataRouter;
+
+        public void ProcessPropertyRead(PropertyReadInfo propertyReadInfo, CheckLoggingContext checkContext)
+            => _buildEngineDataRouter?.ProcessPropertyRead(propertyReadInfo, checkContext);
+
+        public void ProcessPropertyWrite(PropertyWriteInfo propertyWriteInfo, CheckLoggingContext checkContext)
+            => _buildEngineDataRouter?.ProcessPropertyWrite(propertyWriteInfo, checkContext);
+
+        public void ProcessProjectEvaluationStarted(ICheckContext checkContext, string projectFullPath)
+            => _buildEngineDataRouter?.ProcessProjectEvaluationStarted(checkContext, projectFullPath);
+#nullable disable
     }
 }
